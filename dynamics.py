@@ -44,7 +44,7 @@ def main():
     V=correlate_activity(grid[0],L,L/2)
     np.save(SimulationName+"/Vinitial",V)
 
-    Vvec=dynamics(V,N,J,tautheta,tauh,maxsteps,dt,beta,h0,J0,skipsteps)
+    Vvec=dynamics(V,J,tautheta=tautheta,tauh=tauh,maxsteps=maxsteps,dt=dt,beta=beta,h0=h0,J0=J0,skipsteps=skipsteps)
 
     np.save(SimulationName+"/Vdynamics",Vvec)
 
@@ -91,8 +91,9 @@ def BuildJ(N,grid,L):
 def Sigmoid(h,beta,h0):
     return 1./(1.+np.exp(-beta*(h-h0)))        
 
-def dynamics(V,N,J,tautheta,tauh,maxsteps,dt,beta,h0,J0,skipsteps):
+def dynamics(V,J,tautheta=1.,tauh=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,J0=0.2,skipsteps=10):
      
+        N = len(V)
         Vvec=np.zeros((maxsteps,N))
         theta=np.zeros(N)
         h=np.zeros(N)
