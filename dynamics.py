@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Oct 23 16:31:07 2019
+Created on Mon 8 Feb
 
-@author: davide
+@author: vb
 """
 import numpy as np
 import random
@@ -16,16 +16,16 @@ def main():
     SimulationName="1D"
     N=1000 #number of neurons
     m=1 #number of maps
-    gamma=10. #
+    gamma=10. 
     tauh=0.1
-    tautheta=1.
-    maxsteps=100
+    tautheta=10.
+    maxsteps=1000
     skipsteps=10
     dt=0.01
     beta=10.
     h0=0.
     J0=0.2
-
+    c=0.04 # sparsity of the non-zero connections 
     random.seed(123)
 
     #CREATE SIMULATION FOLDER
@@ -37,12 +37,12 @@ def main():
     grid=RegularPfc(N,m) # defines environment. grid is a m x N array, m number of maps, N number of units in the network
     
     np.save(SimulationName+"/pfc",grid)
-    J=BuildJ(N,grid) # builds connectivity 
+    J=BuildJ(N,grid,J0=J0,nk=N*c) # builds connectivity 
     #V=np.random.uniform(0,1,N) # initialize network in a random state, input 
     V=correlate_activity(grid[0],bump_center=0.5)
     np.save(SimulationName+"/Vinitial",V)
 
-    Vvec=dynamics(V,J,tautheta=tautheta,tauh=tauh,maxsteps=maxsteps,dt=dt,beta=beta,h0=h0,J0=J0,skipsteps=skipsteps)
+    Vvec=dynamics(V,J,tautheta=tautheta,tauh=tauh,maxsteps=maxsteps,dt=dt,beta=beta,h0=h0,skipsteps=skipsteps)
 
     np.save(SimulationName+"/Vdynamics",Vvec)
 
@@ -71,7 +71,7 @@ def RegularPfc(N,m):
             grid[j][:]=tempgrid
         return grid
 
-def BuildJ(N,grid):
+def BuildJ(N,grid,nk=20,J0=0.2):
     J=np.zeros((N,N))
     for i in range(N):
         for j in range(N):
@@ -79,13 +79,13 @@ def BuildJ(N,grid):
                 x1=grid[k][i]
                 x2=grid[k][j]
                 if i!=j:
-                    J[i][j]=J[i][j]+K(x1,x2,N)
-    return J
+                    J[i][j]=J[i][j]+K(x1,x2,N,nk=nk)
+    return (J-J0)/nk
 
 def Sigmoid(h,beta,h0):
     return 1./(1.+np.exp(-beta*(h-h0)))        
 
-def dynamics(V,J,tautheta=1.,tauh=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,J0=0.2,skipsteps=10,nk=20):
+def dynamics(V,J,tautheta=1.,tauh=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,skipsteps=10):
      
         N = len(V)
         Vvec=np.zeros((maxsteps,N))
@@ -93,7 +93,7 @@ def dynamics(V,J,tautheta=1.,tauh=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,J0=0.2
         h=np.zeros(N)
         for step in range(maxsteps):
             theta+=dt*(V-theta)/tautheta
-            h+=dt*(np.dot(J-J0,V)-h)/tauh # + random.uniform(0, 10)
+            h+=dt*(np.dot(J,V)-h-theta)/tauh # + random.uniform(0, 10)
             #print(np.dot(J-J0,V))
             if(step%skipsteps==0):
                  print("h=",np.min(h),np.max(h))
