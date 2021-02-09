@@ -57,41 +57,49 @@ def main():
 
         #np.save(SimulationName+"/Stimuli",s)
 
-        Vvec=dynamics(V,J,s,tautheta=tautheta,tauh=tauh,maxsteps=maxsteps,dt=dt,beta=beta,h0=h0,skipsteps=skipsteps)
+        Vvec, thetavec=dynamics(V,J,s,tautheta=tautheta,tauh=tauh,maxsteps=maxsteps,dt=dt,beta=beta,h0=h0,skipsteps=skipsteps)
 
         #np.save(SimulationName+"/Vdynamics",Vvec)
 
         print("Dynamics terminated, result saved")
 
-        plot_heatmap(Vvec,s,maxsteps,x1,x2,t1,t2)
+        plot_heatmap(Vvec,thetavec,s,maxsteps,x1,x2,t1,t2)
     return
 
 # FUNCTIONS
 
-def plot_heatmap(Vs,S,maxsteps,x1,x2,t1,t2):
+def plot_heatmap(Vs,thetas,S,maxsteps,x1,x2,t1,t2):
     print(x1,x2)
-    fig, axs = plt.subplots(2, figsize=(6,3)) 
+    fig, axs = plt.subplots(3, figsize=(9,6)) 
     #Vs=np.load("1D/Vdynamics.npy")
     #S=np.load("1D/Stimuli.npy")
     print(np.shape(S))
     im = axs[0].imshow(np.log(Vs.T), interpolation='bilinear', cmap=cm.RdYlGn, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
     im1 = axs[1].imshow(S.T, interpolation='bilinear', cmap=cm.Greys, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+    im2 = axs[2].imshow(np.log(thetas.T), interpolation='bilinear', cmap=cm.Blues, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
     
     #ax.axhline(y=400, color='k', linestyle='-')
     #ax.axhline(y=1200, color='k', linestyle='-')
     divider = make_axes_locatable(axs[0])
     cax = divider.append_axes("top", size="50%", pad=0.3)
     plt.colorbar(im,cax=cax,orientation='horizontal')
+    
     divider = make_axes_locatable(axs[1])
     cax = divider.append_axes("top", size="50%", pad=0.3)    
     plt.colorbar(im1,cax=cax,orientation='horizontal')
+    
+    divider = make_axes_locatable(axs[2])
+    cax = divider.append_axes("top", size="50%", pad=0.3)    
+    plt.colorbar(im2,cax=cax,orientation='horizontal')    
     # ax.set_xticks(np.arange(0,1200,200))
     # ax.set_xticklabels(np.arange(0,1200,200))
     # ax.set_yticks(np.arange(0,1200,200))
 
     axs[0].set_ylabel("log(V(x))", fontsize=14)
-    axs[1].set_xlabel("time", fontsize=14)
     axs[1].set_ylabel("S(x)", fontsize=14)    
+    axs[2].set_ylabel("theta(x)", fontsize=14)    
+
+    axs[2].set_xlabel("time", fontsize=14)
     # ax.set_yticklabels(['%.2f'%i for i in np.linspace(0,1,6)]);   
     fig.tight_layout() 
     fig.savefig("heatmap_x1_%.1f_x2_%.1f_t1_%d_t2_%d.png"%(x1,x2,t1,t2))
@@ -99,7 +107,7 @@ def plot_heatmap(Vs,S,maxsteps,x1,x2,t1,t2):
 def make_stimulus(maxsteps,N,t1,t2,x1,x2,deltat,deltax):
     s=np.zeros((maxsteps,N))
     s[t1:t1+deltat,int((x1-deltax)*N):int((x1+deltax)*N)]=1
-    s[t2:t2+deltat,int((x2-deltax)*N):int((x2+deltax)*N)]=1
+    s[t2:int(t2+deltat*1.15),int((x2-deltax)*N):int((x2+deltax)*N)]=1
     return s
 
 
@@ -141,18 +149,23 @@ def dynamics(V,J,s,tautheta=1.,tauh=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,skip
      
         N = len(V)
         Vvec=np.zeros((maxsteps,N))
+        thetavec=np.zeros((maxsteps,N))
         theta=np.zeros(N)
         h=np.zeros(N)
+
         for step in range(maxsteps):
             theta+=dt*(V-theta)/tautheta
             h+=dt*(np.dot(J,V)-h-theta+s[step])/tauh # + random.uniform(0, 10)
+            V=Sigmoid(h,beta,h0)
+            Vvec[step,:]=V
+            thetavec[step,:]=theta
+
             if(step%skipsteps==0):
                  print("h=",np.min(h),np.max(h))
                  print("V=",np.min(V),np.max(V))
-            V=Sigmoid(h,beta,h0)
-            Vvec[step][:]=V
+            
             #print("Dynamic step: "+str(step)+" done, mean: "+str(np.mean(V))+" sparsity: "+str(pow(np.mean(V),2)/np.mean(pow(V,2))))
-        return Vvec
+        return Vvec, thetavec
 
 def correlate_activity(pos,bump_center=0.5):
     N=len(pos)
