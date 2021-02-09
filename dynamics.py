@@ -14,19 +14,19 @@ import matplotlib.pyplot as plt
 def main():
 
     SimulationName="1D"
-    N=1000 #number of neurons
+    N=1200 #number of neurons
     m=1 #number of maps
     gamma=10. 
     tauh=0.1
     tautheta=10.
-    maxsteps=1000
+    maxsteps=10000
     skipsteps=10
     dt=0.01
     beta=10.
     h0=0.
     J0=0.2
     c=0.04 # sparsity of the non-zero connections 
-    random.seed(123)
+    #random.seed(123)
 
     #CREATE SIMULATION FOLDER
     if not os.path.exists(SimulationName):
@@ -37,12 +37,15 @@ def main():
     grid=RegularPfc(N,m) # defines environment. grid is a m x N array, m number of maps, N number of units in the network
     
     np.save(SimulationName+"/pfc",grid)
-    J=BuildJ(N,grid,J0=J0,nk=N*c) # builds connectivity 
+    J=BuildJ(N,grid,J0=J0,nk=N*c/1.2) # builds connectivity 
+    V=np.zeros(N)
     #V=np.random.uniform(0,1,N) # initialize network in a random state, input 
-    V=correlate_activity(grid[0],bump_center=0.5)
+    #V=correlate_activity(grid[0],bump_center=0.5)
     np.save(SimulationName+"/Vinitial",V)
 
-    Vvec=dynamics(V,J,tautheta=tautheta,tauh=tauh,maxsteps=maxsteps,dt=dt,beta=beta,h0=h0,skipsteps=skipsteps)
+    s=make_stimulus(maxsteps,N,t1=int(5/dt),t2=int(47/dt),x1=0.2,x2=0.6,deltat=int(12/dt),deltax=0.05)
+
+    Vvec=dynamics(V,J,s,tautheta=tautheta,tauh=tauh,maxsteps=maxsteps,dt=dt,beta=beta,h0=h0,skipsteps=skipsteps)
 
     np.save(SimulationName+"/Vdynamics",Vvec)
 
@@ -50,6 +53,13 @@ def main():
     return
 
 # FUNCTIONS
+
+def make_stimulus(maxsteps,N,t1,t2,x1,x2,deltat,deltax):
+    s=np.zeros((maxsteps,N))
+    s[t1:t1+deltat,int((x1-deltax)*N):int((x1+deltax)*N)]=1
+    s[t2:t2+deltat,int((x2-deltax)*N):int((x2+deltax)*N)]=1
+    return s
+
 
 def K(x1,x2,N,nk=20):
         d0=nk/N
@@ -85,7 +95,7 @@ def BuildJ(N,grid,nk=20,J0=0.2):
 def Sigmoid(h,beta,h0):
     return 1./(1.+np.exp(-beta*(h-h0)))        
 
-def dynamics(V,J,tautheta=1.,tauh=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,skipsteps=10):
+def dynamics(V,J,s,tautheta=1.,tauh=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,skipsteps=10):
      
         N = len(V)
         Vvec=np.zeros((maxsteps,N))
@@ -93,11 +103,11 @@ def dynamics(V,J,tautheta=1.,tauh=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,skipst
         h=np.zeros(N)
         for step in range(maxsteps):
             theta+=dt*(V-theta)/tautheta
-            h+=dt*(np.dot(J,V)-h-theta)/tauh # + random.uniform(0, 10)
+            h+=dt*(np.dot(J,V)-h-theta+s[step])/tauh # + random.uniform(0, 10)
             #print(np.dot(J-J0,V))
-            if(step%skipsteps==0):
-                 print("h=",np.min(h),np.max(h))
-                 print("V=",Sigmoid(np.min(h),beta,h0),Sigmoid(np.max(h),beta,h0))
+            # if(step%skipsteps==0):
+            #      print("h=",np.min(h),np.max(h))
+            #      print("V=",Sigmoid(np.min(h),beta,h0),Sigmoid(np.max(h),beta,h0))
             V=Sigmoid(h,beta,h0)
             Vvec[step][:]=V
             #print("Dynamic step: "+str(step)+" done, mean: "+str(np.mean(V))+" sparsity: "+str(pow(np.mean(V),2)/np.mean(pow(V,2))))
