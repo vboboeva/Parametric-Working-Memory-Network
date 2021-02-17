@@ -18,17 +18,22 @@ def main():
     SimulationName="1D"
     N=1000 #number of neurons
     m=1 #number of maps
-    gamma=10. 
-    tauh=0.1
+
+    tauV=0.1
     tautheta=10.
+    tauF=10.
+    U=0.5
+
     maxsteps=10000
     skipsteps=100
     dt=0.01
+
     beta=10.
     h0=0.
     J0=0.2
     c=0.04 # sparsity of the non-zero connections 
     sigma=20
+
     x1=0.3
     x2vals=[0.6]#[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
     t1=int(5/dt)
@@ -57,18 +62,18 @@ def main():
 
         #np.save(SimulationName+"/Stimuli",s)
 
-        Vvec, thetavec=dynamics(V,J,s,tautheta=tautheta,tauh=tauh,maxsteps=maxsteps,dt=dt,beta=beta,h0=h0,skipsteps=skipsteps)
+        Vvec, thetavec=dynamics(V,J,s,tautheta=tautheta,tauV=tauV,tauF=tauF,U=U,maxsteps=maxsteps,dt=dt,beta=beta,h0=h0,skipsteps=skipsteps)
 
         #np.save(SimulationName+"/Vdynamics",Vvec)
 
         print("Dynamics terminated, result saved")
 
-        plot_heatmap(Vvec,thetavec,s,maxsteps,x1,x2,t1,t2)
+        #plot_heatmap(Vvec,thetavec,s,maxsteps,x1,x2,t1,t2)
     return
 
 # FUNCTIONS
 
-def plot_heatmap(Vs,thetas,S,maxsteps,x1,x2,t1,t2):
+def plot_heatmap(Vs,us,S,maxsteps,x1,x2,t1,t2):
     print(x1,x2)
     fig, axs = plt.subplots(3, figsize=(9,6)) 
     #Vs=np.load("1D/Vdynamics.npy")
@@ -76,7 +81,7 @@ def plot_heatmap(Vs,thetas,S,maxsteps,x1,x2,t1,t2):
     print(np.shape(S))
     im = axs[0].imshow(np.log(Vs.T), interpolation='bilinear', cmap=cm.RdYlGn, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
     im1 = axs[1].imshow(S.T, interpolation='bilinear', cmap=cm.Greys, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-    im2 = axs[2].imshow(np.log(thetas.T), interpolation='bilinear', cmap=cm.Blues, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+    im2 = axs[2].imshow(np.log(us.T), interpolation='bilinear', cmap=cm.Blues, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
     
     #ax.axhline(y=400, color='k', linestyle='-')
     #ax.axhline(y=1200, color='k', linestyle='-')
@@ -97,7 +102,7 @@ def plot_heatmap(Vs,thetas,S,maxsteps,x1,x2,t1,t2):
 
     axs[0].set_ylabel("log(V(x))", fontsize=14)
     axs[1].set_ylabel("S(x)", fontsize=14)    
-    axs[2].set_ylabel("theta(x)", fontsize=14)    
+    axs[2].set_ylabel("u(x)", fontsize=14)    
 
     axs[2].set_xlabel("time", fontsize=14)
     # ax.set_yticklabels(['%.2f'%i for i in np.linspace(0,1,6)]);   
@@ -106,8 +111,8 @@ def plot_heatmap(Vs,thetas,S,maxsteps,x1,x2,t1,t2):
 
 def make_stimulus(maxsteps,N,t1,t2,x1,x2,deltat,deltax):
     s=np.zeros((maxsteps,N))
-    s[t1:t1+deltat,int((x1-deltax)*N):int((x1+deltax)*N)]=1
-    s[t2:int(t2+deltat*1.15),int((x2-deltax)*N):int((x2+deltax)*N)]=1
+    s[t1:int(t1+deltat),int((x1-deltax)*N):int((x1+deltax)*N)]=0.5
+    s[t2:int(t2+deltat),int((x2-deltax)*N):int((x2+deltax)*N)]=0.5
     return s
 
 
@@ -142,30 +147,35 @@ def BuildJ(N,grid,nk=20,J0=0.2,sigma=20):
                     J[i][j]=J[i][j]+K(x1,x2,N,nk=nk)
     return (J-J0)/sigma
 
-def Sigmoid(h,beta,h0):
+def Logistic(h,beta,h0):
     return 1./(1.+np.exp(-beta*(h-h0)))        
 
-def dynamics(V,J,s,tautheta=1.,tauh=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,skipsteps=10):
+def dynamics(V,J,s,tautheta=1.,tauV=0.1,tauF=10.,U=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,skipsteps=10):
      
         N = len(V)
         Vvec=np.zeros((maxsteps,N))
-        thetavec=np.zeros((maxsteps,N))
-        theta=np.zeros(N)
+        #thetavec=np.zeros((maxsteps,N))
+        uvec=np.zeros((maxsteps,N))
+
+        #theta=np.zeros(N)
         h=np.zeros(N)
+        u=np.zeros(N)
 
         for step in range(maxsteps):
-            theta+=dt*(V-theta)/tautheta
-            h+=dt*(np.dot(J,V)-h-theta+s[step])/tauh # + random.uniform(0, 10)
-            V=Sigmoid(h,beta,h0)
+            #theta+=dt*(V-theta)/tautheta
+            u+=dt*(-(u-U)+tauF*U*V*(1.-u))            
+            h= np.dot(J,V) + s[step] #+ random.uniform(0., 2.)
+            V+=dt*(Logistic(h,beta,h0)-V)/tauV
             Vvec[step,:]=V
-            thetavec[step,:]=theta
+            uvec[step,:]=u
+            #thetavec[step,:]=theta
 
             if(step%skipsteps==0):
                  print("h=",np.min(h),np.max(h))
                  print("V=",np.min(V),np.max(V))
             
             #print("Dynamic step: "+str(step)+" done, mean: "+str(np.mean(V))+" sparsity: "+str(pow(np.mean(V),2)/np.mean(pow(V,2))))
-        return Vvec, thetavec
+        return Vvec, uvec
 
 def correlate_activity(pos,bump_center=0.5):
     N=len(pos)
