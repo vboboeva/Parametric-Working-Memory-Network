@@ -16,16 +16,16 @@ import time
 def main():
 
     SimulationName="1D"
-    N=500 #number of neurons
+    N=1000 #number of neurons
     m=1 #number of maps
 
     tauVWM=0.1
-    tauVH=10.
-    tautheta=10.
+    tauVH=1.
+    tautheta=5.
     tauF=10.
     U=0.5
 
-    maxsteps=10000
+    maxsteps=3000
     skipsteps=1
     dt=0.01
 
@@ -36,7 +36,7 @@ def main():
     sigma=30
 
     num_sims=1
-    random.seed(1987)#time.time)
+    random.seed(time.time)
 
     x1vals=np.array([random.uniform(0.1, 0.9) for i in range(num_sims)])
     x2vals=np.array([random.uniform(0.1, 0.9) for i in range(num_sims)])
@@ -203,11 +203,11 @@ def UpdateNet(VWM,JWMtoWM,VH,JHtoH,s,tautheta=1.,tauVWM=0.1,tauVH=10,tauF=10.,U=
 
         k=0
         for step in range(maxsteps):
-            #theta+=dt*(VWM-theta)/tautheta
+            theta+=dt*(0.3*VWM-theta)/tautheta
             #u+=dt*(-(u-U)+tauF*U*VWM*(1.-u))            
             
             # UPDATE THE WM NET
-            hWM = np.dot(JWMtoWM,VWM) + VH/3. + s[step] #+ #random.uniform(0., 0.1)
+            hWM = np.dot(JWMtoWM,VWM) + VH/3. + s[step] - theta #+ #random.uniform(0., 0.1)
             VWM += dt*(Logistic(hWM,beta,h0)-VWM)/tauVWM
 
             # UPDATE THE H NET
