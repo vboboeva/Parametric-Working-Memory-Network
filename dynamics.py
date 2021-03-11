@@ -19,13 +19,16 @@ def main():
     N=1000 #number of neurons
     m=1 #number of maps
 
-    tauVWM=0.1
-    tauVH=1.
-    tautheta=5.
-    tauF=10.
-    U=0.5
+    tauhWM=0.1
+    tauthetaWM=5.
 
-    maxsteps=3000
+    tauhH=3.
+    tauthetaH=5.
+
+    tauF=2
+    U=0.3
+
+    maxsteps=5000
     skipsteps=1
     dt=0.01
 
@@ -36,7 +39,7 @@ def main():
     sigma=30
 
     num_sims=1
-    random.seed(time.time)
+    random.seed(1987)#time.time)
 
     x1vals=np.array([random.uniform(0.1, 0.9) for i in range(num_sims)])
     x2vals=np.array([random.uniform(0.1, 0.9) for i in range(num_sims)])
@@ -74,19 +77,11 @@ def main():
         x2=x2vals[i]
         print(i,x1,x2)
         
-        VWM=np.zeros(N)
-        VH=np.zeros(N)
-        # initialize network in a random state
-        #V=np.random.uniform(0,1,N)  
-        # initialize network in the center
-        #V=CorrAct(Ring[0],bump_center=0.5) 
-        #np.save(SimulationName+"/Vinitial",V)
-
         s=MakeStim(maxsteps,N,t1=t1,t2=t2,x1=x1,x2=x2,deltat=deltat,deltax=deltax)
 
         #np.save(SimulationName+"/Stimuli",s)
 
-        VWMsave, VHsave = UpdateNet(VWM,JWMtoWM,VH,JHtoH,s,tautheta=tautheta,tauVWM=tauVWM,tauVH=tauVH,tauF=tauF,U=U,maxsteps=maxsteps,dt=dt,beta=beta,h0=h0,skipsteps=skipsteps)
+        VWMsave, VHsave = UpdateNet(JWMtoWM,JHtoH,s,tauthetaWM=tauthetaWM,tauthetaH=tauthetaH,tauhWM=tauhWM,tauhH=tauhH,tauF=tauF,U=U,maxsteps=maxsteps,dt=dt,beta=beta,h0=h0,skipsteps=skipsteps,N=N)
 
         if (i==0):
             data=np.ravel(VWMsave, 'F')
@@ -105,15 +100,53 @@ def main():
 
 # FUNCTIONS
 
+def UpdateNet(JWMtoWM,JHtoH,s,tauthetaWM=5.,tauthetaH=5.,tauhWM=0.1,tauhH=0.1,tauF=10.,U=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,skipsteps=10, N=1000):
+     
+        #Vvec=np.zeros((maxsteps,N))
+        VWMsave=np.zeros((int(maxsteps/skipsteps+1),N))
+        VHsave=np.zeros((int(maxsteps/skipsteps+1),N))
+        #thetavec=np.zeros((maxsteps,N))
+        #uvec=np.zeros((maxsteps,N))
+        VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH =np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)
+
+        k=0
+        for step in range(maxsteps):
+            thetaWM+=dt*(0.3*VWM-thetaWM)/tauthetaWM
+            thetaH+=dt*(0.3*VH-thetaH)/tauthetaH
+
+            uWM+=dt*(-(uWM-U)+tauF*U*VWM*(1.-uWM))            
+            uH+=dt*(-(uH-U)+tauF*U*VH*(1.-uH))
+
+            # UPDATE THE WM NET
+            hWM += dt*(np.dot(JWMtoWM,VWM) + VH/3. + s[step] - thetaWM - hWM)/tauhWM #+ #random.uniform(0., 0.1)
+            VWM = Logistic(hWM,beta,h0)
+
+            # UPDATE THE H NET
+            hH += dt*(np.dot(JHtoH,VH) + VWM/1.25 - thetaH - hH)/tauhH #+ random.uniform(0., 2.)
+            VH = Logistic(hH,beta,h0)
+
+            #uvec[step,:]=u
+            #thetavec[step,:]=theta
+            #Vvec[step,:]=V
+
+            if(step%skipsteps==0):
+                VWMsave[k,:]=VWM
+                VHsave[k,:]=VH
+                k+=1
+            
+            #print("Dynamic step: "+str(step)+" done, mean: "+str(np.mean(V))+" sparsity: "+str(pow(np.mean(V),2)/np.mean(pow(V,2))))
+        #print(Vsave)
+        return VWMsave, VHsave
+
 def PlotHeat(VWMs,VHs,S,maxsteps,x1,x2,t1,t2):
     print(x1,x2)
     fig, axs = plt.subplots(3, figsize=(9,6)) 
     #Vs=np.load("1D/Vdynamics.npy")
     #S=np.load("1D/Stimuli.npy")
     print(np.shape(S))
-    im = axs[0].imshow(VWMs.T, interpolation='bilinear', cmap=cm.RdYlGn, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-    im1 = axs[1].imshow(VHs.T, interpolation='bilinear', cmap=cm.RdYlGn, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-    im2 = axs[2].imshow(S.T, interpolation='bilinear', cmap=cm.Greys, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+    im = axs[0].imshow(np.log(VWMs.T), interpolation='bilinear', cmap=cm.RdYlGn, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+    im1 = axs[1].imshow(np.log(VHs.T), interpolation='bilinear', cmap=cm.RdYlGn, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+    im2 = axs[2].imshow(np.log(S.T), interpolation='bilinear', cmap=cm.Greys, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
     #im2 = axs[2].imshow(np.log(us.T), interpolation='bilinear', cmap=cm.Blues, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
     
     #ax.axhline(y=400, color='k', linestyle='-')
@@ -139,7 +172,7 @@ def PlotHeat(VWMs,VHs,S,maxsteps,x1,x2,t1,t2):
 
     axs[0].set_ylabel("log(VWM(x))", fontsize=14)
     axs[1].set_ylabel("log(VH(x))", fontsize=14)
-    axs[2].set_ylabel("S(x)", fontsize=14)    
+    axs[2].set_ylabel("log(S(x))", fontsize=14)    
     axs[1].set_xlabel("time", fontsize=14)
     # ax.set_yticklabels(['%.2f'%i for i in np.linspace(0,1,6)]);   
     fig.tight_layout() 
@@ -185,48 +218,6 @@ def BuildJ(N,grid,nk=20,J0=0.2,sigma=1):
 
 def Logistic(h,beta,h0):
     return 1./(1.+np.exp(-beta*(h-h0)))        
-
-def UpdateNet(VWM,JWMtoWM,VH,JHtoH,s,tautheta=1.,tauVWM=0.1,tauVH=10,tauF=10.,U=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,skipsteps=10):
-     
-        N = len(VWM)
-        #Vvec=np.zeros((maxsteps,N))
-        VWMsave=np.zeros((int(maxsteps/skipsteps+1),N))
-        VHsave=np.zeros((int(maxsteps/skipsteps+1),N))
-
-        #thetavec=np.zeros((maxsteps,N))
-        #uvec=np.zeros((maxsteps,N))
-
-        theta=np.zeros(N)
-        hWM=np.zeros(N)
-        hH=np.zeros(N)
-        u=np.zeros(N)
-
-        k=0
-        for step in range(maxsteps):
-            theta+=dt*(0.3*VWM-theta)/tautheta
-            #u+=dt*(-(u-U)+tauF*U*VWM*(1.-u))            
-            
-            # UPDATE THE WM NET
-            hWM = np.dot(JWMtoWM,VWM) + VH/3. + s[step] - theta #+ #random.uniform(0., 0.1)
-            VWM += dt*(Logistic(hWM,beta,h0)-VWM)/tauVWM
-
-            # UPDATE THE H NET
-            hH = np.dot(JHtoH,VH) + VWM/3. #+ random.uniform(0., 2.)
-            VH += dt*(Logistic(hH,beta,h0)-VH)/tauVH
-
-
-            #uvec[step,:]=u
-            #thetavec[step,:]=theta
-            #Vvec[step,:]=V
-
-            if(step%skipsteps==0):
-                VWMsave[k,:]=VWM
-                VHsave[k,:]=VH
-                k+=1
-            
-            #print("Dynamic step: "+str(step)+" done, mean: "+str(np.mean(V))+" sparsity: "+str(pow(np.mean(V),2)/np.mean(pow(V,2))))
-        #print(Vsave)
-        return VWMsave, VHsave
 
 def CorrAct(pos,bump_center=0.5):
     N=len(pos)
