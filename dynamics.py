@@ -35,8 +35,7 @@ def main():
     beta=10.
     h0=0.
     J0=0.2
-    c=0.03 # sparsity of the non-zero connections 
-    sigma=30
+    a=0.03 # sparsity 
 
     num_sims=1
     random.seed(1987)#time.time)
@@ -63,12 +62,12 @@ def main():
     np.save(SimulationName+"/labels",labels)
 
     RingWM=MakeRing(N,m) # defines environment. Ring is a m x N array, m number of maps, N number of units in the network
-    JWMtoWM=BuildJ(N,RingWM,J0=J0,nk=N*c,sigma=sigma) # builds connectivity within WM net
+    JWMtoWM=BuildJ(N,RingWM,J0=J0,a=a) # builds connectivity within WM net
 
     #np.save(SimulationName+"/pfc",Ring1)
 
     RingH=MakeRing(N,m)
-    JHtoH=BuildJ(N,RingH,J0=J0,nk=N*c,sigma=sigma) # builds connectivity within H net
+    JHtoH=BuildJ(N,RingH,J0=J0,a=a) # builds connectivity within H net
 
     # no need to make within network connectivity, as they are one-to-one    
 
@@ -185,14 +184,13 @@ def MakeStim(maxsteps,N,t1,t2,x1,x2,deltat,deltax):
     return s
 
 
-def K(x1,x2,N,nk=20):
-        d0=nk/N
+def K(x1,x2,N,a=0.03):
         d=x1-x2
         if d>0.5:
             d=d-1.
         elif d<-0.5:
             d=d+1.
-        return np.exp(-abs(d/d0))
+        return np.exp(-abs(d/a))
 
 def MakeRing(N,m):
         grid=np.zeros((m,N))
@@ -205,7 +203,7 @@ def MakeRing(N,m):
             grid[j][:]=tempgrid
         return grid
 
-def BuildJ(N,grid,nk=20,J0=0.2,sigma=1):
+def BuildJ(N,grid,a=0.03,J0=0.2):
     J=np.zeros((N,N))
     for i in range(N):
         for j in range(N):
@@ -213,8 +211,8 @@ def BuildJ(N,grid,nk=20,J0=0.2,sigma=1):
                 x1=grid[k][i]
                 x2=grid[k][j]
                 if i!=j:
-                    J[i][j]=J[i][j]+K(x1,x2,N,nk=nk) 
-    return (J-J0)/sigma
+                    J[i][j]=J[i][j]+K(x1,x2,N,a=a) 
+    return (J-J0)/(N*a)
 
 def Logistic(h,beta,h0):
     return 1./(1.+np.exp(-beta*(h-h0)))        
