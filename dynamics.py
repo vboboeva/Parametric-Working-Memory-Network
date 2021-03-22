@@ -8,14 +8,14 @@ Created on Mon 8 Feb
 import numpy as np
 import random
 import os
-#import matplotlib.pyplot as plt
-#from matplotlib import cm
-#from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import time
 
 def main():
 
-    SimulationName="data"
+    SimulationName="testruns"
     N=1000 #number of neurons
     m=1 #number of maps
 
@@ -28,78 +28,82 @@ def main():
     tauF=2
     U=0.3
 
-    maxsteps=5000
+    maxsteps=20000
     skipsteps=1
     dt=0.01
 
     beta=10. # activation sensitivity
     h0=0.  # static threshold
-    J0=0.2 # uniform inhibition
     a=0.03 # sparsity 
-    D=0.3 # amount of adaptation
-    AWMtoHvals=[0.1]#np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
-    AHtoWMvals=[0.1]#np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
+    J0=0.2 # uniform inhibition
+    D=0.2 # amount of adaptation
+    AWMtoH=0.8#np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
+    AHtoWM=0.33#np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
     periodic = False # whether or not we want periodic boundary conditions
 
+
     num_sims=1
+    num_trials=5
     random.seed(1987)#time.time)
 
-    x1vals=np.array([random.uniform(0.1, 0.9) for i in range(num_sims)])
-    x2vals=np.array([random.uniform(0.1, 0.9) for i in range(num_sims)])
+    for sim in range(num_sims):
 
-    t1=int(0/dt)
-    t2=int(5/dt)
-    deltat=int(2/dt)
-    deltax=0.05
+        x1vals=np.array([random.uniform(0.1, 0.9) for i in range(num_trials)])
+        x2vals=np.array([random.uniform(0.1, 0.9) for i in range(num_trials)])
 
-    #CREATE SIMULATION FOLDER
-    if not os.path.exists(SimulationName):
-        os.makedirs(SimulationName)
+        t1vals=np.array([int(40*i/dt) for i in range(num_trials)])
+        t2vals=np.array([int((40*i+10)/dt) for i in range(num_trials)])
 
-    # labels=np.zeros(len(x1vals))
-    # for i in range(len(x1vals)):
-    #     if (x1vals[i]-x2vals[i] >= 0. ):
-    #         labels[i]=1
-    #     else:
-    #         labels[i]=0
+        print(x1vals)
+        print(t1vals)
 
-    # np.save(SimulationName+"/labels",labels)
+        deltat=int(2/dt)
+        deltax=0.05
 
-    RingWM=MakeRing(N,m) # defines environment. Ring is a m x N array, m number of maps, N number of units in the network
-    JWMtoWM=BuildJ(N,RingWM,J0=J0,a=a,periodic=periodic) # builds connectivity within WM net
+        #CREATE SIMULATION FOLDER
+        if not os.path.exists(SimulationName):
+            os.makedirs(SimulationName)
 
-    #np.save(SimulationName+"/pfc",Ring1)
+        RingWM=MakeRing(N,m) # defines environment. Ring is a m x N array, m number of maps, N number of units in the network
+        JWMtoWM=BuildJ(N,RingWM,J0=J0,a=a,periodic=periodic) # builds connectivity within WM net
 
-    RingH=MakeRing(N,m)
-    JHtoH=BuildJ(N,RingH,J0=J0,a=a,periodic=periodic) # builds connectivity within H net
+        RingH=MakeRing(N,m)
+        JHtoH=BuildJ(N,RingH,J0=J0,a=a,periodic=periodic) # builds connectivity within H net
 
-    # no need to make within network connectivity, as they are one-to-one    
-
-    for i in range(len(x1vals)):
-        x1=x1vals[i]
-        x2=x2vals[i]
-        print(i,x1,x2)
+        # no need to make inter network connectivity, as they are one-to-one    
         
-        s=MakeStim(maxsteps,N,t1=t1,t2=t2,x1=x1,x2=x2,deltat=deltat,deltax=deltax)
-
-        for AWMtoH in AWMtoHvals:
-        	for AHtoWM in AHtoWMvals:
-	        	np.save("%s/s_x1_%.2f_x2_%.2f_t1_%d_t2_%d_AWMtoH%.2f_AHtoWM%.2f"%(SimulationName,x1,x2,t1,t2,AWMtoH,AHtoWM), s)
-		        VWMsave, VHsave = UpdateNet(JWMtoWM,JHtoH,AWMtoH,AHtoWM,s,D=D,tauthetaWM=tauthetaWM,tauthetaH=tauthetaH,tauhWM=tauhWM,tauhH=tauhH,tauF=tauF,U=U,maxsteps=maxsteps,dt=dt,beta=beta,h0=h0,skipsteps=skipsteps,N=N)
-	        	np.save("%s/VWM_x1_%.2f_x2_%.2f_t1_%d_t2_%d_AWMtoH%.2f_AHtoWM%.2f"%(SimulationName,x1,x2,t1,t2,AWMtoH,AHtoWM), VWMsave)
-	        	np.save("%s/VH_x1_%.2f_x2_%.2f_t1_%d_t2_%d_AWMtoH%.2f_AHtoWM%.2f"%(SimulationName,x1,x2,t1,t2,AWMtoH,AHtoWM), VHsave)
-	        	#print(np.shape(data))
-    #print("Dynamics terminated, result saved")
+        s=MakeStim(maxsteps,N,x1vals,x2vals,t1vals,t2vals,deltat=deltat,deltax=deltax)
+        np.save("%s/s_%d"%(SimulationName, sim), s)
+        VWMsave, VHsave, thetaWMsave, thetaHsave  = UpdateNet(JWMtoWM,JHtoH,AWMtoH,AHtoWM,s,D=D,tauthetaWM=tauthetaWM,tauthetaH=tauthetaH,tauhWM=tauhWM,tauhH=tauhH,tauF=tauF,U=U,maxsteps=maxsteps,dt=dt,beta=beta,h0=h0,skipsteps=skipsteps,N=N)
+        #np.save("%s/VWM_%d"%(SimulationName, sim), VWMsave)
+        #np.save("%s/VH_%d"%(SimulationName, sim), VHsave)
+    	
+        PlotHeat(VWMsave,VHsave,thetaWMsave,thetaHsave,s,maxsteps,sim)
+        #print("Dynamics terminated, result saved")
     return
 
 # FUNCTIONS
+
+def MakeStim(maxsteps,N,x1vals,x2vals,t1vals,t2vals,deltat,deltax):
+    s=np.zeros((maxsteps,N))
+    i=0
+    for x1 in x1vals:
+        x2=x2vals[i]
+        t1=t1vals[i]
+        t2=t2vals[i]
+        s[t1:int(t1+deltat),int((x1-deltax)*N):int((x1+deltax)*N)]=1
+        s[t2:int(t2+deltat),int((x2-deltax)*N):int((x2+deltax)*N)]=1
+        i+=1
+    return s
 
 def UpdateNet(JWMtoWM,JHtoH,AWMtoH,AHtoWM,s,D=0.3,tauthetaWM=5.,tauthetaH=5.,tauhWM=0.1,tauhH=0.1,tauF=10.,U=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,skipsteps=10, N=1000):
      
         #Vvec=np.zeros((maxsteps,N))
         VWMsave=np.zeros((int(maxsteps/skipsteps),N))
         VHsave=np.zeros((int(maxsteps/skipsteps),N))
-        #thetavec=np.zeros((maxsteps,N))
+        thetaWMsave=np.zeros((maxsteps,N))
+        thetaHsave=np.zeros((maxsteps,N))
+
         #uvec=np.zeros((maxsteps,N))
         VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH = np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)
 
@@ -126,22 +130,24 @@ def UpdateNet(JWMtoWM,JHtoH,AWMtoH,AHtoWM,s,D=0.3,tauthetaWM=5.,tauthetaH=5.,tau
             if(step%skipsteps==0):
                 VWMsave[k,:]=VWM
                 VHsave[k,:]=VH
+                thetaWMsave[k,:]=thetaWM
+                thetaHsave[k,:]=thetaH
                 k+=1
             
             #print("Dynamic step: "+str(step)+" done, mean: "+str(np.mean(V))+" sparsity: "+str(pow(np.mean(V),2)/np.mean(pow(V,2))))
         #print(Vsave)
-        return VWMsave, VHsave
+        return VWMsave, VHsave, thetaWMsave, thetaHsave
 
-def PlotHeat(VWMs,VHs,S,maxsteps,x1,x2,t1,t2,AWMtoH,AHtoWM):
-    print(x1,x2)
-    fig, axs = plt.subplots(3, figsize=(9,6)) 
+def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim):
+    fig, axs = plt.subplots(5, figsize=(18,12) ) #
     #Vs=np.load("1D/Vdynamics.npy")
     #S=np.load("1D/Stimuli.npy")
     print(np.shape(S))
-    im = axs[0].imshow(np.log(VWMs.T), interpolation='bilinear', cmap=cm.RdYlGn, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-    im1 = axs[1].imshow(np.log(VHs.T), interpolation='bilinear', cmap=cm.RdYlGn, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-    im2 = axs[2].imshow(np.log(S.T), interpolation='bilinear', cmap=cm.Greys, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-    #im2 = axs[2].imshow(np.log(us.T), interpolation='bilinear', cmap=cm.Blues, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+    im = axs[0].imshow(np.log(S.T), interpolation='bilinear', cmap=cm.Greys, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+    im1 = axs[1].imshow(np.log(VWMs.T), interpolation='bilinear', cmap=cm.RdYlGn, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+    im2 = axs[2].imshow(thetaWMs.T, interpolation='bilinear', cmap=cm.Blues, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+    im3 = axs[3].imshow(np.log(VHs.T), interpolation='bilinear', cmap=cm.RdYlGn, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+    im4 = axs[4].imshow(thetaHs.T, interpolation='bilinear', cmap=cm.Blues, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
     
     #ax.axhline(y=400, color='k', linestyle='-')
     #ax.axhline(y=1200, color='k', linestyle='-')
@@ -156,6 +162,14 @@ def PlotHeat(VWMs,VHs,S,maxsteps,x1,x2,t1,t2,AWMtoH,AHtoWM):
     divider = make_axes_locatable(axs[2])
     cax = divider.append_axes("top", size="10%", pad=0.3)    
     plt.colorbar(im2,cax=cax,orientation='horizontal')    
+ 
+    divider = make_axes_locatable(axs[3])
+    cax = divider.append_axes("top", size="10%", pad=0.3)    
+    plt.colorbar(im3,cax=cax,orientation='horizontal')    
+ 
+    divider = make_axes_locatable(axs[4])
+    cax = divider.append_axes("top", size="10%", pad=0.3)    
+    plt.colorbar(im4,cax=cax,orientation='horizontal')    
     
     # divider = make_axes_locatable(axs[2])
     # cax = divider.append_axes("top", size="50%", pad=0.3)    
@@ -164,20 +178,15 @@ def PlotHeat(VWMs,VHs,S,maxsteps,x1,x2,t1,t2,AWMtoH,AHtoWM):
     # ax.set_xticklabels(np.arange(0,1200,200))
     # ax.set_yticks(np.arange(0,1200,200))
 
-    axs[0].set_ylabel("log(VWM(x))", fontsize=14)
-    axs[1].set_ylabel("log(VH(x))", fontsize=14)
-    axs[2].set_ylabel("log(S(x))", fontsize=14)    
+    axs[0].set_ylabel("log(S(x))", fontsize=14)    
+    axs[1].set_ylabel("log(VWM(x))", fontsize=14)
+    axs[2].set_ylabel("log(thetaWM(x))", fontsize=14)
+    axs[3].set_ylabel("log(VH(x))", fontsize=14)
+    axs[4].set_ylabel("log(thetaH(x))", fontsize=14)
     axs[1].set_xlabel("time", fontsize=14)
     # ax.set_yticklabels(['%.2f'%i for i in np.linspace(0,1,6)]);   
     fig.tight_layout() 
-    fig.savefig("heatmap_x1_%.2f_x2_%.2f_t1_%d_t2_%d_AWMtoH%.2f_AHtoWM%.2f.png"%(x1,x2,t1,t2,AWMtoH,AHtoWM))
-
-def MakeStim(maxsteps,N,t1,t2,x1,x2,deltat,deltax):
-    s=np.zeros((maxsteps,N))
-    s[t1:int(t1+deltat),int((x1-deltax)*N):int((x1+deltax)*N)]=1
-    s[t2:int(t2+deltat),int((x2-deltax)*N):int((x2+deltax)*N)]=1
-    return s
-
+    fig.savefig("heatmap_%d.png"%sim)
 
 def K(x1,x2,N,J0=0.2,a=0.03,periodic=True,cutoff=None):
     d=x1-x2
@@ -213,7 +222,7 @@ def BuildJ(N,grid,a=0.03,J0=0.2,periodic=True):
                 x1=grid[k][i]
                 x2=grid[k][j]
                 if i!=j:
-                    J[i][j]=K(x1,x2,N,a=a,J0=J0,periodic=periodic) 
+                    J[i][j]=K(x1,x2,N,J0=J0,a=a,periodic=periodic,cutoff=None) 
     return J/(N*a)
 
 def Logistic(h,beta,h0):
