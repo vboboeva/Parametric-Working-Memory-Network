@@ -15,8 +15,10 @@ import time
 
 def main():
 
+
+
 	SimulationName="testruns"
-	N=1000 #number of neurons
+	N=2000 #number of neurons
 	m=1 #number of maps
 
 	tauhWM=0.1
@@ -34,11 +36,11 @@ def main():
 
 	beta=10. # activation sensitivity
 	h0=0.  # static threshold
-	a=0.03 # sparsity 
-	J0=0.2 # uniform inhibition
-	D=0.2 # amount of adaptation
+	a=0.02 # sparsity 
+	J0=0.3 # uniform inhibition
+	D=0.3 # amount of adaptation
 
-	AWMtoH=0.8 #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
+	AWMtoH=0.80 #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
 	AHtoWM=0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
 	periodic = False # whether or not we want periodic boundary conditions
 	stimulus_set= np.array([[0.6,0.68],[0.68,0.6],[0.68,0.76],[0.76,0.68],[0.76,0.84],[0.84,0.76],[0.84,0.92],[0.92,0.84], \
@@ -49,7 +51,7 @@ def main():
 	xmax=0.92
 
 	xmin_new=0.1
-	xmax_new=0.92
+	xmax_new=0.9
 
 	def rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set):
 		#stimulus_set_new=np.array((8,2))
@@ -60,16 +62,18 @@ def main():
 
 	stimulus_set_new = rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set)
 
+	print(stimulus_set_new[:,0]-stimulus_set_new[:,1])
+
 	# print(stimulus_set_new)
 	# plt.scatter(stimulus_set_new[:,0],stimulus_set_new[:,1])
 	# plt.plot(np.linspace(0,1,10),np.linspace(0,1,10))
 	# plt.show()
 
-	deltat=int(2/dt)
-	deltax=0.05	
+	deltat=int(5/dt)
+	deltax=0.03	
 
 	num_sims=1
-	num_trials=200
+	num_trials=2
 	random.seed(1987)#time.time)
 
 	#CREATE SIMULATION FOLDER
@@ -86,6 +90,9 @@ def main():
 	t1val=int(1000)
 	t2val=int(3000)
 
+	# POINTS TO TAKE FOR READOUT 
+	tsave=np.arange(maxsteps) # put this for plotting [2000,3000]
+
 	for sim in range(num_sims):
 
 		seq=np.arange(np.shape(stimulus_set)[0])
@@ -97,25 +104,25 @@ def main():
 
 		stimuli = np.zeros((num_trials,2)) 
 		labels = np.zeros(num_trials)
-		VWMsave = np.zeros((num_trials, int(maxsteps/skipsteps)*N))
-		print(np.shape(VWMsave))
+		#VWMsave = np.zeros((num_trials, int(maxsteps/skipsteps)*N))
+		VWMsave = np.zeros((num_trials, len(tsave)*N))
+		#print(np.shape(VWMsave))
 
 		for trial in range(num_trials):
-			print(trial)
-
 			x1val=xvals[trial,0]
 			x2val=xvals[trial,1]
+			print(trial, x1val, x2val, x1val-x2val)
 
 			s=MakeStim(maxsteps,N,x1val,x2val,t1val,t2val,deltat=deltat,deltax=deltax)
 
 			VWM_t,VH_t,thetaWM_t,thetaH_t = UpdateNet(JWMtoWM,JHtoH,AWMtoH,AHtoWM,s,\
-				VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, \
+				VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave,\
 				D=D,tauthetaWM=tauthetaWM,tauthetaH=tauthetaH,tauhWM=tauhWM,tauhH=tauhH,tauF=tauF,U=U, \
 				maxsteps=maxsteps,dt=dt,beta=beta,h0=h0,skipsteps=skipsteps,N=N)
 
-			#PlotHeat(VWM_t,VH_t,thetaWM_t,thetaH_t,s,maxsteps,sim,trial)
-			print(np.shape(VWM))
-			print(np.shape(np.ravel(VWM)))
+			PlotHeat(VWM_t,VH_t,thetaWM_t,thetaH_t,s,maxsteps,sim,trial)
+			#print(np.shape(VWM))
+			#print(np.shape(np.ravel(VWM)))
 			VWMsave[trial] = np.ravel(VWM_t)
 			stimuli[trial,0] = x1val
 			stimuli[trial,1] = x2val
@@ -125,10 +132,10 @@ def main():
 				#print(trial)
 				labels[trial]=1
 
-		np.save("%s/stimuli_sim%d"%(SimulationName, sim), stimuli)
-		np.save("%s/label_sim%d"%(SimulationName, sim), labels)
-		np.save("%s/VWM_sim%d"%(SimulationName, sim), VWMsave)
-		#np.save("%s/VH_sim%d_trial%d"%(SimulationName, sim, trial), VHsave)
+		# np.save("%s/stimuli_sim%d"%(SimulationName, sim), stimuli)
+		# np.save("%s/label_sim%d"%(SimulationName, sim), labels)
+		# np.save("%s/VWM_sim%d"%(SimulationName, sim), VWMsave)
+		# #np.save("%s/VH_sim%d_trial%d"%(SimulationName, sim, trial), VHsave)
 
 	return
 
@@ -140,11 +147,10 @@ def MakeStim(maxsteps,N,x1,x2,t1,t2,deltat,deltax):
 	s[t2:int(t2+deltat),int((x2-deltax)*N):int((x2+deltax)*N)]=1
 	return s
 
-def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, D=0.3,tauthetaWM=5.,tauthetaH=5.,tauhWM=0.1,tauhH=0.1,tauF=10.,U=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,skipsteps=10, N=1000):
+def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave, D=0.3,tauthetaWM=5.,tauthetaH=5.,tauhWM=0.1,tauhH=0.1,tauF=10.,U=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,skipsteps=10, N=1000):
 	 
-		#Vvec=np.zeros((maxsteps,N))
-		VWMsave=np.zeros((int(maxsteps/skipsteps),N))
-		VHsave=np.zeros((int(maxsteps/skipsteps),N))
+		VWMsave=np.zeros((len(tsave),N))
+		VHsave=np.zeros((len(tsave),N))
 		thetaWMsave=np.zeros((maxsteps,N))
 		thetaHsave=np.zeros((maxsteps,N))
 
@@ -158,14 +164,16 @@ def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, 
 			uH+=dt*(-(uH-U)+tauF*U*VH*(1.-uH))
 
 			# UPDATE THE WM NET
-			hWM += dt*(np.dot(JWMtoWM,VWM) + VH*AHtoWM + s[step] - thetaWM - hWM)/tauhWM #+ #random.uniform(0., 0.1)
+			hWM += dt*(np.dot(JWMtoWM,VWM) + VH*AHtoWM + s[step] - thetaWM - hWM)/tauhWM # + #random.uniform(0., 0.1)
 			VWM = Logistic(hWM,beta,h0)
 
 			# UPDATE THE H NET
 			hH += dt*(np.dot(JHtoH,VH) + VWM*AWMtoH - thetaH - hH)/tauhH #+ random.uniform(0., 2.)
 			VH = Logistic(hH,beta,h0)
 
-			if(step%skipsteps==0):
+			# TAKE SNAPSHOTS OF SYSTEM FOR READOUT
+			#if(step%skipsteps==0):
+			if step in tsave:
 				VWMsave[k,:]=VWM
 				VHsave[k,:]=VH
 				thetaWMsave[k,:]=thetaWM
@@ -239,7 +247,6 @@ def K(x1,x2,N,J0=0.2,a=0.03,periodic=True,cutoff=None):
 			return np.exp(-abs(d/a)) - J0
 		else:
 			return 0
-
 
 def MakeRing(N,m):
 		grid=np.zeros((m,N))
