@@ -8,9 +8,9 @@ Created on Mon 8 Feb
 import numpy as np
 import random
 import os
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+#import matplotlib.pyplot as plt
+#from matplotlib import cm
+#from mpl_toolkits.axes_grid1 import make_axes_locatable
 import time
 
 def main():
@@ -18,13 +18,13 @@ def main():
 
 
 	SimulationName="testruns"
-	N=2000 #number of neurons
+	N=1000 #number of neurons
 	m=1 #number of maps
 
 	tauhWM=0.1
 	tauthetaWM=5.
 
-	tauhH=3.
+	tauhH=100.
 	tauthetaH=5.
 
 	tauF=2
@@ -37,14 +37,15 @@ def main():
 	beta=10. # activation sensitivity
 	h0=0.  # static threshold
 	a=0.02 # sparsity 
-	J0=0.3 # uniform inhibition
-	D=0.3 # amount of adaptation
+	J0=0.2 # uniform inhibition
+	DWM=0.05 # amount of adaptation
+	DH=0.5
 
 	AWMtoH=0.80 #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
-	AHtoWM=0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
+	AHtoWM=0.5#0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
 	periodic = False # whether or not we want periodic boundary conditions
-	stimulus_set= np.array([[0.6,0.68],[0.68,0.6],[0.68,0.76],[0.76,0.68],[0.76,0.84],[0.84,0.76],[0.84,0.92],[0.92,0.84], \
-								[0.70,0.76],[0.72,0.76],[0.74,0.76],[0.75,0.76],[0.755,0.76],[0.765,0.76],[0.77,0.76],[0.78,0.76],[0.80,0.76],[0.82,0.76] ])
+	stimulus_set = np.array([ [0.68,0.6], [0.76,0.68], [0.84,0.76], [0.92,0.84], [0.6,0.68], [0.68,0.76], [0.76,0.84], [0.84,0.92] , 
+								[0.70,0.76],[0.72,0.76],[0.74,0.76],[0.76,0.76],[0.78,0.76],[0.80,0.76],[0.82,0.76] ])
 
 	print(np.shape(stimulus_set)[0])
 	xmin=0.6
@@ -53,32 +54,19 @@ def main():
 	xmin_new=0.1
 	xmax_new=0.9
 
-	def rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set):
-		#stimulus_set_new=np.array((8,2))
-		for i in range(np.shape(stimulus_set)[0]):
-			for j in range(2):
-				stimulus_set[i,j] = ((xmax_new - xmin_new)*(stimulus_set[i,j]-xmin))/(xmax-xmin) + xmin_new
-		return stimulus_set
-
-	stimulus_set_new = rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set)
-
-	print(stimulus_set_new[:,0]-stimulus_set_new[:,1])
-
-	# print(stimulus_set_new)
-	# plt.scatter(stimulus_set_new[:,0],stimulus_set_new[:,1])
-	# plt.plot(np.linspace(0,1,10),np.linspace(0,1,10))
-	# plt.show()
-
 	deltat=int(5/dt)
-	deltax=0.03	
+	deltax=0.05	
 
 	num_sims=1
-	num_trials=2
-	random.seed(1987)#time.time)
+	repeats=1 # number of repetitions of EACH stimulus pair
+	random.seed(1987)#time.time)	
+
+	stimulus_set_new = rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set)
 
 	#CREATE SIMULATION FOLDER
 	if not os.path.exists(SimulationName):
 		os.makedirs(SimulationName)
+
 
 	RingWM=MakeRing(N,m) # defines environment. Ring is a m x N array, m number of maps, N number of units in the network
 	JWMtoWM=BuildJ(N,RingWM,J0=J0,a=a,periodic=periodic) # builds connectivity within WM net
@@ -87,59 +75,76 @@ def main():
 	JHtoH=BuildJ(N,RingH,J0=J0,a=a,periodic=periodic) # builds connectivity within H net
 	# no need to make inter network connectivity, as they are one-to-one    
 
+	# this is for performance by stimulus scatter
+	np.save("%s/stimulus_set.npy"%(SimulationName), stimulus_set_new)		
+
+	# this is for psychometric curve
+	np.save("%s/dstim_set.npy"%(SimulationName), np.unique(np.round_(stimulus_set_new[:,1]-stimulus_set_new[:,0], decimals=3)))		
+
 	t1val=int(1000)
 	t2val=int(3000)
 
 	# POINTS TO TAKE FOR READOUT 
-	tsave=np.arange(maxsteps) # put this for plotting [2000,3000]
+	tsave=np.arange(maxsteps)#[3000,4000]#  # put this for plotting 
 
 	for sim in range(num_sims):
 
-		seq=np.arange(np.shape(stimulus_set)[0])
-		vals=random.choices(seq, k=num_trials) #np.array([random.uniform(0.1, 0.9) for i in range(num_trials)])
-		xvals=stimulus_set_new[vals]
+		stimuli=stimulus_set_new
+		for i in range(repeats):
+			stimuli=np.vstack((stimuli,stimulus_set_new))
+		np.random.shuffle(stimuli)	
 
+		num_trials=len(stimuli[:,0])
+
+		#print(num_trials)
 
 		VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH = np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)
 
-		stimuli = np.zeros((num_trials,2)) 
 		labels = np.zeros(num_trials)
-		#VWMsave = np.zeros((num_trials, int(maxsteps/skipsteps)*N))
 		VWMsave = np.zeros((num_trials, len(tsave)*N))
-		#print(np.shape(VWMsave))
+		VHsave = np.zeros((num_trials, len(tsave)*N))
 
-		for trial in range(num_trials):
-			x1val=xvals[trial,0]
-			x2val=xvals[trial,1]
-			print(trial, x1val, x2val, x1val-x2val)
+		for trial in range(20):
+			x1val=stimuli[trial,0]
+			x2val=stimuli[trial,1]
+			#print(trial, x1val, x2val, x1val-x2val)
 
 			s=MakeStim(maxsteps,N,x1val,x2val,t1val,t2val,deltat=deltat,deltax=deltax)
 
-			VWM_t,VH_t,thetaWM_t,thetaH_t = UpdateNet(JWMtoWM,JHtoH,AWMtoH,AHtoWM,s,\
+			VWM_t,VH_t,thetaWM_t,thetaH_t = UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s,\
 				VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave,\
-				D=D,tauthetaWM=tauthetaWM,tauthetaH=tauthetaH,tauhWM=tauhWM,tauhH=tauhH,tauF=tauF,U=U, \
-				maxsteps=maxsteps,dt=dt,beta=beta,h0=h0,skipsteps=skipsteps,N=N)
+				DWM=DWM, DH=DH, tauthetaWM=tauthetaWM, tauthetaH=tauthetaH, tauhWM=tauhWM, tauhH=tauhH, tauF=tauF, U=U, \
+				maxsteps=maxsteps, dt=dt, beta=beta, h0=h0, skipsteps=skipsteps, N=N)
 
-			PlotHeat(VWM_t,VH_t,thetaWM_t,thetaH_t,s,maxsteps,sim,trial)
-			#print(np.shape(VWM))
-			#print(np.shape(np.ravel(VWM)))
-			VWMsave[trial] = np.ravel(VWM_t)
-			stimuli[trial,0] = x1val
+			# PlotHeat(VWM_t,VH_t,thetaWM_t,thetaH_t,s,maxsteps,sim,trial)
+		
 			stimuli[trial,1] = x2val
+			stimuli[trial,0] = x1val
+			VWMsave[trial] = np.ravel(VWM_t)
+			VWMsave[trial] = np.ravel(VWM_t)
 
-			#np.save("%s/s_sim%d_trial%d"%(SimulationName, sim, trial), s)
 			if x1val>x2val:
-				#print(trial)
 				labels[trial]=1
 
-		# np.save("%s/stimuli_sim%d"%(SimulationName, sim), stimuli)
-		# np.save("%s/label_sim%d"%(SimulationName, sim), labels)
-		# np.save("%s/VWM_sim%d"%(SimulationName, sim), VWMsave)
-		# #np.save("%s/VH_sim%d_trial%d"%(SimulationName, sim, trial), VHsave)
+		# this is for history plot	
+		np.save("%s/stimuli_sim%d"%(SimulationName, sim), stimuli)
+
+		# these are for perceptron
+		np.save("%s/label_sim%d"%(SimulationName, sim), labels)
+		np.save("%s/VWM_sim%d"%(SimulationName, sim), VWMsave)
+		np.save("%s/VH_sim%d"%(SimulationName, sim), VHsave)
 
 	return
 
 # FUNCTIONS
+
+def rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set):
+	#stimulus_set_new=np.array((8,2))
+	for i in range(np.shape(stimulus_set)[0]):
+		for j in range(2):
+			stimulus_set[i,j] = ((xmax_new - xmin_new)*(stimulus_set[i,j]-xmin))/(xmax-xmin) + xmin_new
+	return stimulus_set
+
 
 def MakeStim(maxsteps,N,x1,x2,t1,t2,deltat,deltax):
 	s=np.zeros((maxsteps,N))
@@ -147,7 +152,7 @@ def MakeStim(maxsteps,N,x1,x2,t1,t2,deltat,deltax):
 	s[t2:int(t2+deltat),int((x2-deltax)*N):int((x2+deltax)*N)]=1
 	return s
 
-def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave, D=0.3,tauthetaWM=5.,tauthetaH=5.,tauhWM=0.1,tauhH=0.1,tauF=10.,U=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,skipsteps=10, N=1000):
+def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave, DWM=0.1,DH=0.5,tauthetaWM=5.,tauthetaH=5.,tauhWM=0.1,tauhH=0.1,tauF=10.,U=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,skipsteps=10, N=1000):
 	 
 		VWMsave=np.zeros((len(tsave),N))
 		VHsave=np.zeros((len(tsave),N))
@@ -156,8 +161,8 @@ def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, 
 
 		k=0
 		for step in range(maxsteps):
-			thetaWM+=dt*(D*VWM-thetaWM)/tauthetaWM
-			thetaH+=dt*(D*VH-thetaH)/tauthetaH
+			thetaWM+=dt*(DWM*VWM-thetaWM)/tauthetaWM
+			thetaH+=dt*(DH*VH-thetaH)/tauthetaH
 
 			# these are not being used for the moment
 			uWM+=dt*(-(uWM-U)+tauF*U*VWM*(1.-uWM))            
@@ -168,7 +173,7 @@ def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, 
 			VWM = Logistic(hWM,beta,h0)
 
 			# UPDATE THE H NET
-			hH += dt*(np.dot(JHtoH,VH) + VWM*AWMtoH - thetaH - hH)/tauhH #+ random.uniform(0., 2.)
+			hH += dt*(np.dot(JHtoH,VH) + 0.5*s[step] - thetaH - hH)/tauhH #+ random.uniform(0., 2.) + VWM*AWMtoH
 			VH = Logistic(hH,beta,h0)
 
 			# TAKE SNAPSHOTS OF SYSTEM FOR READOUT
@@ -188,7 +193,7 @@ def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial):
 	fig, axs = plt.subplots(5, figsize=(18,12) ) #
 	#Vs=np.load("1D/Vdynamics.npy")
 	#S=np.load("1D/Stimuli.npy")
-	print(np.shape(S))
+	#print(np.shape(S))
 	im = axs[0].imshow(np.log(S.T), interpolation='bilinear', cmap=cm.Greys, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	im1 = axs[1].imshow(np.log(VWMs.T), interpolation='bilinear', cmap=cm.RdYlGn, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	im2 = axs[2].imshow(thetaWMs.T, interpolation='bilinear', cmap=cm.Blues, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
