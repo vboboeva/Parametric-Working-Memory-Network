@@ -8,15 +8,16 @@ Created on Mon 8 Feb
 import numpy as np
 import random
 import os
-#import matplotlib.pyplot as plt
-#from matplotlib import cm
-#from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import time
+import cProfile
+import pstats
+from numba import jit
 
 def main():
-
-
-
+	########################################################################### BEGIN PARAMETERS ############################################################################
 	SimulationName="testruns"
 	N=1000 #number of neurons
 	m=1 #number of maps
@@ -47,7 +48,6 @@ def main():
 	stimulus_set = np.array([ [0.68,0.6], [0.76,0.68], [0.84,0.76], [0.92,0.84], [0.6,0.68], [0.68,0.76], [0.76,0.84], [0.84,0.92] , 
 								[0.70,0.76],[0.72,0.76],[0.74,0.76],[0.76,0.76],[0.78,0.76],[0.80,0.76],[0.82,0.76] ])
 
-	print(np.shape(stimulus_set)[0])
 	xmin=0.6
 	xmax=0.92
 
@@ -57,9 +57,20 @@ def main():
 	deltat=int(5/dt)
 	deltax=0.05	
 
+	t1val=int(1000)
+	t2val=int(3000)	
+
 	num_sims=1
-	repeats=1 # number of repetitions of EACH stimulus pair
+	repeats=2 # number of repetitions of EACH stimulus pair
 	random.seed(1987)#time.time)	
+
+	SaveFullDynamics = 1
+	# POINTS TO TAKE FOR READOUT
+	if SaveFullDynamics == 1:
+		tsave=np.arange(maxsteps) 
+	else:
+		tsave=[3000,4000]
+	########################################################################### END PARAMETERS ############################################################################
 
 	stimulus_set_new = rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set)
 
@@ -67,11 +78,10 @@ def main():
 	if not os.path.exists(SimulationName):
 		os.makedirs(SimulationName)
 
-
-	RingWM=MakeRing(N,m) # defines environment. Ring is a m x N array, m number of maps, N number of units in the network
+	RingWM=MakeRing(N) # defines environment. 
 	JWMtoWM=BuildJ(N,RingWM,J0=J0,a=a,periodic=periodic) # builds connectivity within WM net
 
-	RingH=MakeRing(N,m)
+	RingH=MakeRing(N)
 	JHtoH=BuildJ(N,RingH,J0=J0,a=a,periodic=periodic) # builds connectivity within H net
 	# no need to make inter network connectivity, as they are one-to-one    
 
@@ -81,22 +91,14 @@ def main():
 	# this is for psychometric curve
 	np.save("%s/dstim_set.npy"%(SimulationName), np.unique(np.round_(stimulus_set_new[:,1]-stimulus_set_new[:,0], decimals=3)))		
 
-	t1val=int(1000)
-	t2val=int(3000)
-
-	# POINTS TO TAKE FOR READOUT 
-	tsave=np.arange(maxsteps)#[3000,4000]#  # put this for plotting 
-
 	for sim in range(num_sims):
 
 		stimuli=stimulus_set_new
 		for i in range(repeats):
 			stimuli=np.vstack((stimuli,stimulus_set_new))
-		np.random.shuffle(stimuli)	
+		random.Random(1987).shuffle(stimuli)	
 
 		num_trials=len(stimuli[:,0])
-
-		#print(num_trials)
 
 		VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH = np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)
 
@@ -104,35 +106,36 @@ def main():
 		VWMsave = np.zeros((num_trials, len(tsave)*N))
 		VHsave = np.zeros((num_trials, len(tsave)*N))
 
-		for trial in range(20):
-			x1val=stimuli[trial,0]
-			x2val=stimuli[trial,1]
-			#print(trial, x1val, x2val, x1val-x2val)
+		for trial in range(30):#len(stimuli[:,0])):
 
-			s=MakeStim(maxsteps,N,x1val,x2val,t1val,t2val,deltat=deltat,deltax=deltax)
+			s=MakeStim(maxsteps,N,stimuli[trial,0],stimuli[trial,1],t1val,t2val,deltat=deltat,deltax=deltax)
 
 			VWM_t,VH_t,thetaWM_t,thetaH_t = UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s,\
 				VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave,\
 				DWM=DWM, DH=DH, tauthetaWM=tauthetaWM, tauthetaH=tauthetaH, tauhWM=tauhWM, tauhH=tauhH, tauF=tauF, U=U, \
 				maxsteps=maxsteps, dt=dt, beta=beta, h0=h0, skipsteps=skipsteps, N=N)
 
-			# PlotHeat(VWM_t,VH_t,thetaWM_t,thetaH_t,s,maxsteps,sim,trial)
+			if(SaveFullDynamics == 1):
+
+				PlotHeat(VWM_t,VH_t,thetaWM_t,thetaH_t,s,maxsteps,sim,trial,stimuli[trial,0],stimuli[trial,1],t1val,t2val)
 		
-			stimuli[trial,1] = x2val
-			stimuli[trial,0] = x1val
-			VWMsave[trial] = np.ravel(VWM_t)
-			VWMsave[trial] = np.ravel(VWM_t)
+			else:	
+				VWMsave[trial] = np.ravel(VWM_t)
+				VWMsave[trial] = np.ravel(VWM_t)
 
-			if x1val>x2val:
-				labels[trial]=1
+				if stimuli[trial,0]<stimuli[trial,1]:
+					labels[trial]=1
 
-		# this is for history plot	
-		np.save("%s/stimuli_sim%d"%(SimulationName, sim), stimuli)
+		if(SaveFullDynamics == 1):
+			continue 
+		else:
+			# this is for history plot	
+			np.save("%s/stimuli_sim%d"%(SimulationName, sim), stimuli)
 
-		# these are for perceptron
-		np.save("%s/label_sim%d"%(SimulationName, sim), labels)
-		np.save("%s/VWM_sim%d"%(SimulationName, sim), VWMsave)
-		np.save("%s/VH_sim%d"%(SimulationName, sim), VHsave)
+			# these are for perceptron
+			np.save("%s/label_sim%d"%(SimulationName, sim), labels)
+			np.save("%s/VWM_sim%d"%(SimulationName, sim), VWMsave)
+			np.save("%s/VH_sim%d"%(SimulationName, sim), VHsave)
 
 	return
 
@@ -152,6 +155,10 @@ def MakeStim(maxsteps,N,x1,x2,t1,t2,deltat,deltax):
 	s[t2:int(t2+deltat),int((x2-deltax)*N):int((x2+deltax)*N)]=1
 	return s
 
+@jit(nopython=True)
+def dot(x,y):
+	return np.dot(x,y)
+
 def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave, DWM=0.1,DH=0.5,tauthetaWM=5.,tauthetaH=5.,tauhWM=0.1,tauhH=0.1,tauF=10.,U=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,skipsteps=10, N=1000):
 	 
 		VWMsave=np.zeros((len(tsave),N))
@@ -169,11 +176,13 @@ def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, 
 			uH+=dt*(-(uH-U)+tauF*U*VH*(1.-uH))
 
 			# UPDATE THE WM NET
-			hWM += dt*(np.dot(JWMtoWM,VWM) + VH*AHtoWM + s[step] - thetaWM - hWM)/tauhWM # + #random.uniform(0., 0.1)
+			#hWM += dt*(np.dot(JWMtoWM,VWM) + VH*AHtoWM + s[step] - thetaWM - hWM)/tauhWM # + #random.uniform(0., 0.1)
+			hWM += dt*(dot(JWMtoWM,VWM) + VH*AHtoWM + s[step] - thetaWM - hWM)/tauhWM # + #random.uniform(0., 0.1)
 			VWM = Logistic(hWM,beta,h0)
 
 			# UPDATE THE H NET
-			hH += dt*(np.dot(JHtoH,VH) + 0.5*s[step] - thetaH - hH)/tauhH #+ random.uniform(0., 2.) + VWM*AWMtoH
+			#hH += dt*(np.dot(JHtoH,VH) + 0.5*s[step] - thetaH - hH)/tauhH #+ random.uniform(0., 2.) + VWM*AWMtoH
+			hH += dt*(dot(JHtoH,VH) + 0.5*s[step] - thetaH - hH)/tauhH #+ random.uniform(0., 2.) + VWM*AWMtoH
 			VH = Logistic(hH,beta,h0)
 
 			# TAKE SNAPSHOTS OF SYSTEM FOR READOUT
@@ -189,12 +198,14 @@ def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, 
 		#print(Vsave)
 		return VWMsave, VHsave, thetaWMsave, thetaHsave
 
-def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial):
+def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,t1val,t2val):
 	fig, axs = plt.subplots(5, figsize=(18,12) ) #
 	#Vs=np.load("1D/Vdynamics.npy")
 	#S=np.load("1D/Stimuli.npy")
 	#print(np.shape(S))
 	im = axs[0].imshow(np.log(S.T), interpolation='bilinear', cmap=cm.Greys, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+	axs[0].text(t1val+500,stim1*1000, '%.2f'%stim1)
+	axs[0].text(t2val+500,stim2*1000, '%.2f'%stim2)
 	im1 = axs[1].imshow(np.log(VWMs.T), interpolation='bilinear', cmap=cm.RdYlGn, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	im2 = axs[2].imshow(thetaWMs.T, interpolation='bilinear', cmap=cm.Blues, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	im3 = axs[3].imshow(np.log(VHs.T), interpolation='bilinear', cmap=cm.RdYlGn, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
@@ -253,28 +264,22 @@ def K(x1,x2,N,J0=0.2,a=0.03,periodic=True,cutoff=None):
 		else:
 			return 0
 
-def MakeRing(N,m):
-		grid=np.zeros((m,N))
-		tempgrid=np.zeros(N)
+@jit(nopython=True)
+def MakeRing(N):
+		grid=np.zeros(N)
 		for i in range(N):
-			tempgrid[i]=float(i)/float(N)
-		grid[0][:]=tempgrid    
-		for j in range(1,m):
-			random.shuffle(tempgrid)
-			grid[j][:]=tempgrid
+			grid[i]=float(i)/float(N)
 		return grid
 
 def BuildJ(N,grid,a=0.03,J0=0.2,periodic=True):
 	J=np.zeros((N,N))
 	for i in range(N):
 		for j in range(N):
-			for k in range(len(grid)):
-				x1=grid[k][i]
-				x2=grid[k][j]
-				if i!=j:
-					J[i][j]=K(x1,x2,N,J0=J0,a=a,periodic=periodic,cutoff=None) 
+			if i!=j:
+				J[i][j]=K(grid[i],grid[j],N,J0=J0,a=a,periodic=periodic,cutoff=None) 
 	return J/(N*a)
 
+@jit(nopython=True)
 def Logistic(h,beta,h0):
 	return 1./(1.+np.exp(-beta*(h-h0)))        
 
@@ -287,8 +292,8 @@ def CorrAct(pos,bump_center=0.5):
 	return V
 
 if __name__ == "__main__":
+	#cProfile.run('main()')
 	main()
-
 	# def f (a,x):
 	#     return 1./(1.+np.exp(-a*x+3))
 
