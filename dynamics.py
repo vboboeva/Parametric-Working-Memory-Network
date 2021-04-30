@@ -8,17 +8,29 @@ Created on Mon 8 Feb
 import numpy as np
 import random
 import os
-#import matplotlib.pyplot as plt
-#from matplotlib import cm
-#from mpl_toolkits.axes_grid1 import make_axes_locatable
 import time
 import cProfile
 import pstats
 from numba import jit
+# import matplotlib.pyplot as plt
+# from matplotlib import cm
+# from mpl_toolkits.axes_grid1 import make_axes_locatable
+# from matplotlib import rc
+# from pylab import rcParams
+
+# # the axes attributes need to be set before the call to subplot
+# rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']}, size=18)
+# rc('text', usetex=True)
+# rc('axes', edgecolor='black', linewidth=0.5)
+# rc('legend', frameon=False)
+# rcParams['ytick.direction'] = 'in'
+# rcParams['xtick.direction'] = 'in'
+# rcParams['text.latex.preamble'] = [r'\usepackage{sfmath}'] # \boldmath
+
 
 def main():
 	########################################################################### BEGIN PARAMETERS ############################################################################
-	SimulationName="testruns"
+	SimulationName="test"
 	N=1000 #number of neurons
 	m=1 #number of maps
 
@@ -62,7 +74,7 @@ def main():
 
 	num_sims=10 # number of sessions
 	repeats=6 # number of repetitions of EACH stimulus pair
-	np.random.seed(1987)#time.time)	
+	np.random.seed(1987) #time.time)	
 
 
 	SaveFullDynamics = 0
@@ -70,12 +82,10 @@ def main():
 	if SaveFullDynamics == 1:
 		tsave=np.arange(maxsteps) 
 	else:
-		tsave=[2900,4000]
+		tsave=np.arange(2800,3300,100) #[2900,3000,4000]
 	########################################################################### END PARAMETERS ############################################################################
 
 	stimulus_set_new = rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set)
-
-	#print(stimulus_set_new)
 
 	if(SaveFullDynamics != 1):
 		#CREATE SIMULATION FOLDER
@@ -95,7 +105,7 @@ def main():
 	JHtoH=BuildJ(N,RingH,J0=J0,a=a,periodic=periodic) # builds connectivity within H net
 	# no need to make inter network connectivity, as they are one-to-one    
 
-	for sim in range(1,num_sims):
+	for sim in range(0,num_sims):
 
 		stimuli=stimulus_set_new
 
@@ -109,27 +119,50 @@ def main():
 		VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH = np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)
 
 		labels = np.zeros(num_trials)
+		drift = np.zeros((num_trials,2))
 		VWMsave = np.zeros((num_trials, len(tsave)*N))
 		VHsave = np.zeros((num_trials, len(tsave)*N))
+
+		drifttowardsprevious=0
+		drifttowardsmean=0
 
 		for trial in range(len(stimuli[:,0])):
 
 			s=MakeStim(maxsteps,N,stimuli[trial,0],stimuli[trial,1],t1val,t2val,deltat=deltat,deltax=deltax)
 
-			VWM_t,VH_t,thetaWM_t,thetaH_t = UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s,\
+			VWM_t,VH_t,thetaWM_t,thetaH_t, drift12, drift2end = UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s,\
 				VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave,\
 				DWM=DWM, DH=DH, tauthetaWM=tauthetaWM, tauthetaH=tauthetaH, tauhWM=tauhWM, tauhH=tauhH, tauF=tauF, U=U, \
-				maxsteps=maxsteps, dt=dt, beta=beta, h0=h0, skipsteps=skipsteps, N=N)
+				maxsteps=maxsteps, dt=dt, beta=beta, h0=h0, skipsteps=skipsteps, N=N, x1=stimuli[trial,0], x2=stimuli[trial,1], \
+				t1val=t1val, t2val=t2val, deltat=deltat)
+
+			# WHETHER DRIFT IS TOWARD MEAN
+			if (trial > 0 and (0.5 - stimuli[trial,0]) != 0.0 ):
+				#print("mean",np.sign(0.5 - stimuli[trial,0]), np.sign(drift12))
+				if (np.sign(0.5 - stimuli[trial,0]) == np.sign(drift12)):
+					drifttowardsmean +=1
+					drift[trial,0] = 1
+
+			# WHETHER DRIFT TOWARD previous stimulus or in opposite direction
+			if (trial > 0 and (stimuli[trial-1,1] - stimuli[trial,0]) != 0.0 ):
+				#print("trial-1",np.sign(stimuli[trial-1,1] - stimuli[trial,0]), np.sign(drift12))
+				if (np.sign(stimuli[trial-1,1] - stimuli[trial,0]) == np.sign(drift12)):
+					drifttowardsprevious +=1
+					drift[trial,1] = 1
 
 			if(SaveFullDynamics == 1):
 
-				PlotHeat(VWM_t,VH_t,thetaWM_t,thetaH_t,s,maxsteps,sim,trial,stimuli[trial,0],stimuli[trial,1],t1val,t2val)
+				PlotHeat(VWM_t,VH_t,thetaWM_t,thetaH_t,s,maxsteps,sim,trial,stimuli[trial,0],stimuli[trial,1],t1val,t2val,dt,N)
 			else:	
 				VWMsave[trial] = np.ravel(VWM_t)
 				VHsave[trial] = np.ravel(VH_t)
 
 				if stimuli[trial,0]>stimuli[trial,1]:
 					labels[trial]=1
+
+		#print("fraction drifted towards previous=",drifttowardsprevious/trial)
+		#print("fraction drifted towards mean=",drifttowardsmean/trial)
+		#print(drift)
 
 		if(SaveFullDynamics == 1):
 			continue 
@@ -141,6 +174,9 @@ def main():
 			np.save("%s/label_sim%d"%(SimulationName, sim), labels)
 			np.save("%s/VWM_sim%d"%(SimulationName, sim), VWMsave)
 			np.save("%s/VH_sim%d"%(SimulationName, sim), VHsave)
+
+			# drift
+			np.save("%s/drift_sim%d"%(SimulationName, sim), drift)
 
 	return
 
@@ -164,7 +200,9 @@ def MakeStim(maxsteps,N,x1,x2,t1,t2,deltat,deltax):
 def dot(x,y):
 	return np.dot(x,y)
 
-def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave, DWM=0.1,DH=0.5,tauthetaWM=5.,tauthetaH=5.,tauhWM=0.1,tauhH=0.1,tauF=10.,U=0.1,maxsteps=1000,dt=0.01,beta=1.,h0=0.,skipsteps=10, N=1000):
+def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave, \
+	DWM=0.1,DH=0.5,tauthetaWM=5.,tauthetaH=5.,tauhWM=0.1,tauhH=0.1,tauF=10.,U=0.1,maxsteps=1000,dt=0.01,
+	beta=1.,h0=0.,skipsteps=10, N=1000, x1=0, x2=0, t1val=0, t2val=0, deltat=0):
 	 
 		VWMsave=np.zeros((len(tsave),N))
 		VHsave=np.zeros((len(tsave),N))
@@ -172,6 +210,12 @@ def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, 
 		thetaHsave=np.zeros((len(tsave),N))
 
 		k=0
+		xafter1=0
+		xbefore2=0
+		xafter2=0
+		xend=0
+		#print(t1val+deltat+1,t2val-1,t2val+deltat+1,maxsteps)
+
 		for step in range(maxsteps):
 			thetaWM+=dt*(DWM*VWM-thetaWM)/tauthetaWM
 			thetaH+=dt*(DH*VH-thetaH)/tauthetaH
@@ -191,19 +235,39 @@ def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, 
 			VH = Logistic(hH,beta,h0)
 
 			# TAKE SNAPSHOTS OF SYSTEM FOR READOUT
-			#if(step%skipsteps==0):
 			if step in tsave:
 				VWMsave[k,:]=VWM
 				VHsave[k,:]=VH
 				thetaWMsave[k,:]=thetaWM
 				thetaHsave[k,:]=thetaH
 				k+=1
-			
-			#print("Dynamic step: "+str(step)+" done, mean: "+str(np.mean(V))+" sparsity: "+str(pow(np.mean(V),2)/np.mean(pow(V,2))))
-		#print(Vsave)
-		return VWMsave, VHsave, thetaWMsave, thetaHsave
 
-def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,t1val,t2val):
+			# COMPUTE BUMP DRIFT FROM END OF FIRST STIMULUS TO BEGINNING OF SECOND STIMULUS
+
+			if (step==(t1val+deltat + 1)):
+				xafter1+=np.argmax(VWM)/N
+				
+			if (step==(t2val - 1)):
+				xbefore2+=np.argmax(VWM)/N
+
+			# COMPUTE BUMP DRIFT FROM END OF SECOND STIMULUS TO END OF TRIAL
+
+			if (step==(t2val+deltat + 1)):
+				xafter2+=np.argmax(VWM)/N
+
+			if (step==(maxsteps-1)):
+				xend+=np.argmax(VWM)/N
+
+		d12=xbefore2-xafter1	
+		d2end=xend-xafter2
+		print(d12,d2end)
+		#print("Dynamic step: "+str(step)+" done, mean: "+str(np.mean(V))+" sparsity: "+str(pow(np.mean(V),2)/np.mean(pow(V,2))))
+		#print(Vsave)
+		return VWMsave, VHsave, thetaWMsave, thetaHsave, d12, d2end
+
+
+
+def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,t1val,t2val,dt,N):
 	fig, axs = plt.subplots(5, figsize=(18,12) ) #
 	#Vs=np.load("1D/Vdynamics.npy")
 	#S=np.load("1D/Stimuli.npy")
@@ -219,41 +283,54 @@ def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,t1val,t2
 	#ax.axhline(y=400, color='k', linestyle='-')
 	#ax.axhline(y=1200, color='k', linestyle='-')
 	divider = make_axes_locatable(axs[0])
-	cax = divider.append_axes("top", size="10%", pad=0.3)
-	plt.colorbar(im,cax=cax,orientation='horizontal')
+	cax = divider.append_axes("right", size="3%", pad=0.3)
+	plt.colorbar(im,cax=cax,orientation='vertical')
 	
 	divider = make_axes_locatable(axs[1])
-	cax = divider.append_axes("top", size="10%", pad=0.3)    
-	plt.colorbar(im1,cax=cax,orientation='horizontal')
+	cax = divider.append_axes("right", size="3%", pad=0.3)    
+	plt.colorbar(im1,cax=cax,orientation='vertical')
 
 	divider = make_axes_locatable(axs[2])
-	cax = divider.append_axes("top", size="10%", pad=0.3)    
-	plt.colorbar(im2,cax=cax,orientation='horizontal')    
+	cax = divider.append_axes("right", size="3%", pad=0.3)    
+	plt.colorbar(im2,cax=cax,orientation='vertical')    
  
 	divider = make_axes_locatable(axs[3])
-	cax = divider.append_axes("top", size="10%", pad=0.3)    
-	plt.colorbar(im3,cax=cax,orientation='horizontal')    
+	cax = divider.append_axes("right", size="3%", pad=0.3)    
+	plt.colorbar(im3,cax=cax,orientation='vertical')    
  
 	divider = make_axes_locatable(axs[4])
-	cax = divider.append_axes("top", size="10%", pad=0.3)    
-	plt.colorbar(im4,cax=cax,orientation='horizontal')    
+	cax = divider.append_axes("right", size="3%", pad=0.3)    
+	plt.colorbar(im4,cax=cax,orientation='vertical')    
 	
-	# divider = make_axes_locatable(axs[2])
-	# cax = divider.append_axes("top", size="50%", pad=0.3)    
-	# plt.colorbar(im2,cax=cax,orientation='horizontal')    
-	# ax.set_xticks(np.arange(0,1200,200))
-	# ax.set_xticklabels(np.arange(0,1200,200))
-	# ax.set_yticks(np.arange(0,1200,200))
+	axs[0].set_ylabel("log(S(x))")    
+	axs[1].set_ylabel("log(VWM(x))")
+	axs[2].set_ylabel("log(thetaWM(x))")
+	axs[3].set_ylabel("log(VH(x))")
+	axs[4].set_ylabel("log(thetaH(x))")
+	axs[4].set_xlabel("time (a.u.)")
 
-	axs[0].set_ylabel("log(S(x))", fontsize=14)    
-	axs[1].set_ylabel("log(VWM(x))", fontsize=14)
-	axs[2].set_ylabel("log(thetaWM(x))", fontsize=14)
-	axs[3].set_ylabel("log(VH(x))", fontsize=14)
-	axs[4].set_ylabel("log(thetaH(x))", fontsize=14)
-	axs[1].set_xlabel("time", fontsize=14)
+	axs[0].set_xticks([])
+	axs[1].set_xticks([])
+	axs[2].set_xticks([])
+	axs[3].set_xticks([])
+	axs[4].set_xticks(np.arange(0,maxsteps,500))
+	axs[4].set_xticklabels([i*dt for i in range(0,maxsteps,500)] )
+
+	axs[0].set_yticks(np.arange(0,N,200))
+	axs[1].set_yticks(np.arange(0,N,200))
+	axs[2].set_yticks(np.arange(0,N,200))
+	axs[3].set_yticks(np.arange(0,N,200))
+	axs[4].set_yticks(np.arange(0,N,200))
+
+	axs[0].set_yticklabels([i/N for i in range(0,N,200)])
+	axs[1].set_yticklabels([i/N for i in range(0,N,200)])
+	axs[2].set_yticklabels([i/N for i in range(0,N,200)])
+	axs[3].set_yticklabels([i/N for i in range(0,N,200)])
+	axs[4].set_yticklabels([i/N for i in range(0,N,200)])
+
 	# ax.set_yticklabels(['%.2f'%i for i in np.linspace(0,1,6)]);   
 	fig.tight_layout() 
-	fig.savefig("heatmap_sim%d_trial%d.png"%(sim,trial))
+	fig.savefig("heatmap_sim%d_trial%d.png"%(sim,trial), bbox_inches='tight')
 
 def K(x1,x2,N,J0=0.2,a=0.03,periodic=True,cutoff=None):
 	d=x1-x2
