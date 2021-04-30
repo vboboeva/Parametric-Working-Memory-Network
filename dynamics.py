@@ -8,9 +8,9 @@ Created on Mon 8 Feb
 import numpy as np
 import random
 import os
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+#import matplotlib.pyplot as plt
+#from matplotlib import cm
+#from mpl_toolkits.axes_grid1 import make_axes_locatable
 import time
 import cProfile
 import pstats
@@ -46,8 +46,8 @@ def main():
 	AHtoWM=0.5#0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
 	periodic = False # whether or not we want periodic boundary conditions
 	stimulus_set = np.array([ [0.68,0.6], [0.76,0.68], [0.84,0.76], [0.92,0.84], [0.6,0.68], [0.68,0.76], [0.76,0.84], [0.84,0.92] , 
-								[0.70,0.76],[0.72,0.76],[0.74,0.76],[0.76,0.76],[0.78,0.76],[0.80,0.76],[0.82,0.76] ])
-
+								[0.70,0.76],[0.74,0.76],[0.76,0.76],[0.78,0.76], [0.82,0.76], 
+								[0.76,0.70],[0.76,0.74],[0.76,0.78], [0.76,0.82] ])
 	xmin=0.6
 	xmax=0.92
 
@@ -60,23 +60,33 @@ def main():
 	t1val=int(1000)
 	t2val=int(3000)	
 
-	num_sims=1
-	repeats=2 # number of repetitions of EACH stimulus pair
-	random.seed(1987)#time.time)	
+	num_sims=10 # number of sessions
+	repeats=6 # number of repetitions of EACH stimulus pair
+	np.random.seed(1987)#time.time)	
 
-	SaveFullDynamics = 1
+
+	SaveFullDynamics = 0
 	# POINTS TO TAKE FOR READOUT
 	if SaveFullDynamics == 1:
 		tsave=np.arange(maxsteps) 
 	else:
-		tsave=[3000,4000]
+		tsave=[2900,4000]
 	########################################################################### END PARAMETERS ############################################################################
 
 	stimulus_set_new = rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set)
 
-	#CREATE SIMULATION FOLDER
-	if not os.path.exists(SimulationName):
-		os.makedirs(SimulationName)
+	#print(stimulus_set_new)
+
+	if(SaveFullDynamics != 1):
+		#CREATE SIMULATION FOLDER
+		if not os.path.exists(SimulationName):
+			os.makedirs(SimulationName)
+		# this is for performance by stimulus scatter
+		np.save("%s/stimulus_set.npy"%(SimulationName), stimulus_set_new)		
+
+		# this is for psychometric curve
+		np.save("%s/dstim_set.npy"%(SimulationName), np.unique(np.round_(stimulus_set_new[:,0]-stimulus_set_new[:,1], decimals=3)))		
+
 
 	RingWM=MakeRing(N) # defines environment. 
 	JWMtoWM=BuildJ(N,RingWM,J0=J0,a=a,periodic=periodic) # builds connectivity within WM net
@@ -85,18 +95,14 @@ def main():
 	JHtoH=BuildJ(N,RingH,J0=J0,a=a,periodic=periodic) # builds connectivity within H net
 	# no need to make inter network connectivity, as they are one-to-one    
 
-	# this is for performance by stimulus scatter
-	np.save("%s/stimulus_set.npy"%(SimulationName), stimulus_set_new)		
-
-	# this is for psychometric curve
-	np.save("%s/dstim_set.npy"%(SimulationName), np.unique(np.round_(stimulus_set_new[:,1]-stimulus_set_new[:,0], decimals=3)))		
-
-	for sim in range(num_sims):
+	for sim in range(1,num_sims):
 
 		stimuli=stimulus_set_new
+
+		#print("before shuffling",stimuli)
 		for i in range(repeats):
 			stimuli=np.vstack((stimuli,stimulus_set_new))
-		random.Random(1987).shuffle(stimuli)	
+		np.random.shuffle(stimuli)
 
 		num_trials=len(stimuli[:,0])
 
@@ -106,7 +112,7 @@ def main():
 		VWMsave = np.zeros((num_trials, len(tsave)*N))
 		VHsave = np.zeros((num_trials, len(tsave)*N))
 
-		for trial in range(30):#len(stimuli[:,0])):
+		for trial in range(len(stimuli[:,0])):
 
 			s=MakeStim(maxsteps,N,stimuli[trial,0],stimuli[trial,1],t1val,t2val,deltat=deltat,deltax=deltax)
 
@@ -118,12 +124,11 @@ def main():
 			if(SaveFullDynamics == 1):
 
 				PlotHeat(VWM_t,VH_t,thetaWM_t,thetaH_t,s,maxsteps,sim,trial,stimuli[trial,0],stimuli[trial,1],t1val,t2val)
-		
 			else:	
 				VWMsave[trial] = np.ravel(VWM_t)
-				VWMsave[trial] = np.ravel(VWM_t)
+				VHsave[trial] = np.ravel(VH_t)
 
-				if stimuli[trial,0]<stimuli[trial,1]:
+				if stimuli[trial,0]>stimuli[trial,1]:
 					labels[trial]=1
 
 		if(SaveFullDynamics == 1):
@@ -163,8 +168,8 @@ def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, 
 	 
 		VWMsave=np.zeros((len(tsave),N))
 		VHsave=np.zeros((len(tsave),N))
-		thetaWMsave=np.zeros((maxsteps,N))
-		thetaHsave=np.zeros((maxsteps,N))
+		thetaWMsave=np.zeros((len(tsave),N))
+		thetaHsave=np.zeros((len(tsave),N))
 
 		k=0
 		for step in range(maxsteps):
@@ -203,7 +208,7 @@ def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,t1val,t2
 	#Vs=np.load("1D/Vdynamics.npy")
 	#S=np.load("1D/Stimuli.npy")
 	#print(np.shape(S))
-	im = axs[0].imshow(np.log(S.T), interpolation='bilinear', cmap=cm.Greys, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+	im = axs[0].imshow(S.T, interpolation='bilinear', cmap=cm.Greys, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	axs[0].text(t1val+500,stim1*1000, '%.2f'%stim1)
 	axs[0].text(t2val+500,stim2*1000, '%.2f'%stim2)
 	im1 = axs[1].imshow(np.log(VWMs.T), interpolation='bilinear', cmap=cm.RdYlGn, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
