@@ -12,20 +12,20 @@ import time
 import cProfile
 import pstats
 from numba import jit
-# import matplotlib.pyplot as plt
-# from matplotlib import cm
-# from mpl_toolkits.axes_grid1 import make_axes_locatable
-# from matplotlib import rc
-# from pylab import rcParams
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib import rc
+from pylab import rcParams
 
-# # the axes attributes need to be set before the call to subplot
-# rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']}, size=18)
-# rc('text', usetex=True)
-# rc('axes', edgecolor='black', linewidth=0.5)
-# rc('legend', frameon=False)
-# rcParams['ytick.direction'] = 'in'
-# rcParams['xtick.direction'] = 'in'
-# rcParams['text.latex.preamble'] = [r'\usepackage{sfmath}'] # \boldmath
+# the axes attributes need to be set before the call to subplot
+rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']}, size=18)
+rc('text', usetex=True)
+rc('axes', edgecolor='black', linewidth=0.5)
+rc('legend', frameon=False)
+rcParams['ytick.direction'] = 'in'
+rcParams['xtick.direction'] = 'in'
+rcParams['text.latex.preamble'] = [r'\usepackage{sfmath}'] # \boldmath
 
 
 def main():
@@ -37,7 +37,7 @@ def main():
 	tauhWM=0.1
 	tauthetaWM=5.
 
-	tauhH=100.
+	tauhH=50.
 	tauthetaH=5.
 
 	tauF=2
@@ -72,12 +72,12 @@ def main():
 	t1val=int(1000)
 	t2val=int(3000)	
 
-	num_sims=10 # number of sessions
-	repeats=6 # number of repetitions of EACH stimulus pair
+	num_sims=1#10 # number of sessions
+	repeats=0#6 # number of repetitions of EACH stimulus pair
 	np.random.seed(1987) #time.time)	
 
 
-	SaveFullDynamics = 0
+	SaveFullDynamics = 1
 	# POINTS TO TAKE FOR READOUT
 	if SaveFullDynamics == 1:
 		tsave=np.arange(maxsteps) 
@@ -119,17 +119,11 @@ def main():
 		VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH = np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)
 
 		labels = np.zeros(num_trials)
-		drift = np.zeros((num_trials,4))
+		drift = np.zeros((num_trials,2))
 		VWMsave = np.zeros((num_trials, len(tsave)*N))
 		VHsave = np.zeros((num_trials, len(tsave)*N))
 
-		drifttowardsprevious=0
-		drifttowardsmean=0
-
-		countmean=0
-		countprevious=0
-
-		for trial in range(len(stimuli[:,0])):
+		for trial in range(10):#len(stimuli[:,0])):
 
 			s=MakeStim(maxsteps,N,stimuli[trial,0],stimuli[trial,1],t1val,t2val,deltat=deltat,deltax=deltax)
 
@@ -139,26 +133,12 @@ def main():
 				maxsteps=maxsteps, dt=dt, beta=beta, h0=h0, skipsteps=skipsteps, N=N, x1=stimuli[trial,0], x2=stimuli[trial,1], \
 				t1val=t1val, t2val=t2val, deltat=deltat)
 
-			# WHETHER DRIFT IS TOWARD MEAN
-			if (trial > 0 and (0.5 - stimuli[trial,0]) != 0.0 ): # DO MEAN OF PREVIOUS STIMULI. NOT 0.5
-				#print("mean",np.sign(0.5 - stimuli[trial,0]), np.sign(drift12))
-				if (np.sign(0.5 - stimuli[trial,0]) == np.sign(drift12)):
-					#drifttowardsmean +=drift12
-					drift[trial,0] = drift12
-					drift[trial,1] = 1
-					#countmean+=1
-
-			# WHETHER DRIFT TOWARD previous stimulus or in opposite direction
-			if (trial > 0 and (stimuli[trial-1,1] - stimuli[trial,0]) != 0.0 ):
-				#print("trial-1",np.sign(stimuli[trial-1,1] - stimuli[trial,0]), np.sign(drift12))
-				if (np.sign(stimuli[trial-1,1] - stimuli[trial,0]) == np.sign(drift12)):
-					#drifttowardsprevious +=drift12
-					drift[trial,2] = drift12
-					drift[trial,3] = 1
-					#countprevious+=1
+			# WHETHER DRIFT IS TOWARD MEAN or PREVIOUS STIMULUS
+			if (trial > 0):
+				drift[trial,0] = np.abs(drift12)*np.sign((np.mean(stimuli[:trial,:])-stimuli[trial,0])*drift12)				
+				drift[trial,1] = np.abs(drift12)*np.sign((stimuli[trial-1,1]-stimuli[trial,0])*drift12)				
 
 			if(SaveFullDynamics == 1):
-
 				PlotHeat(VWM_t,VH_t,thetaWM_t,thetaH_t,s,maxsteps,sim,trial,stimuli[trial,0],stimuli[trial,1],t1val,t2val,dt,N)
 			else:	
 				VWMsave[trial] = np.ravel(VWM_t)
@@ -167,9 +147,10 @@ def main():
 				if stimuli[trial,0]>stimuli[trial,1]:
 					labels[trial]=1
 
-		#print("fraction drifted towards previous=",drifttowardsprevious/trial, countprevious/trial)
-		#print("fraction drifted towards mean=",drifttowardsmean/trial, countmean/trial)
-		#print(drift)
+			# print("drift12",drift12)
+			# print("mean",np.mean(stimuli[:trial,:]))
+			# print("stimulus",stimuli[trial,0])		
+			# print(drift[trial])
 
 		if(SaveFullDynamics == 1):
 			continue 
@@ -266,7 +247,7 @@ def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, 
 
 		d12=xbefore2-xafter1	
 		d2end=xend-xafter2
-		print(d12,d2end)
+		#print(d12,d2end)
 		#print("Dynamic step: "+str(step)+" done, mean: "+str(np.mean(V))+" sparsity: "+str(pow(np.mean(V),2)/np.mean(pow(V,2))))
 		#print(Vsave)
 		return VWMsave, VHsave, thetaWMsave, thetaHsave, d12, d2end
