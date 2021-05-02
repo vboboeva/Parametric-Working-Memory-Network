@@ -119,12 +119,15 @@ def main():
 		VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH = np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)
 
 		labels = np.zeros(num_trials)
-		drift = np.zeros((num_trials,2))
+		drift = np.zeros((num_trials,4))
 		VWMsave = np.zeros((num_trials, len(tsave)*N))
 		VHsave = np.zeros((num_trials, len(tsave)*N))
 
 		drifttowardsprevious=0
 		drifttowardsmean=0
+
+		countmean=0
+		countprevious=0
 
 		for trial in range(len(stimuli[:,0])):
 
@@ -137,18 +140,22 @@ def main():
 				t1val=t1val, t2val=t2val, deltat=deltat)
 
 			# WHETHER DRIFT IS TOWARD MEAN
-			if (trial > 0 and (0.5 - stimuli[trial,0]) != 0.0 ):
+			if (trial > 0 and (0.5 - stimuli[trial,0]) != 0.0 ): # DO MEAN OF PREVIOUS STIMULI. NOT 0.5
 				#print("mean",np.sign(0.5 - stimuli[trial,0]), np.sign(drift12))
 				if (np.sign(0.5 - stimuli[trial,0]) == np.sign(drift12)):
-					drifttowardsmean +=1
-					drift[trial,0] = 1
+					#drifttowardsmean +=drift12
+					drift[trial,0] = drift12
+					drift[trial,1] = 1
+					#countmean+=1
 
 			# WHETHER DRIFT TOWARD previous stimulus or in opposite direction
 			if (trial > 0 and (stimuli[trial-1,1] - stimuli[trial,0]) != 0.0 ):
 				#print("trial-1",np.sign(stimuli[trial-1,1] - stimuli[trial,0]), np.sign(drift12))
 				if (np.sign(stimuli[trial-1,1] - stimuli[trial,0]) == np.sign(drift12)):
-					drifttowardsprevious +=1
-					drift[trial,1] = 1
+					#drifttowardsprevious +=drift12
+					drift[trial,2] = drift12
+					drift[trial,3] = 1
+					#countprevious+=1
 
 			if(SaveFullDynamics == 1):
 
@@ -160,8 +167,8 @@ def main():
 				if stimuli[trial,0]>stimuli[trial,1]:
 					labels[trial]=1
 
-		#print("fraction drifted towards previous=",drifttowardsprevious/trial)
-		#print("fraction drifted towards mean=",drifttowardsmean/trial)
+		#print("fraction drifted towards previous=",drifttowardsprevious/trial, countprevious/trial)
+		#print("fraction drifted towards mean=",drifttowardsmean/trial, countmean/trial)
 		#print(drift)
 
 		if(SaveFullDynamics == 1):
@@ -177,7 +184,6 @@ def main():
 
 			# drift
 			np.save("%s/drift_sim%d"%(SimulationName, sim), drift)
-
 	return
 
 # FUNCTIONS
