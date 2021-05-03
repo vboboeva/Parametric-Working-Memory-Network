@@ -32,13 +32,14 @@ def main():
 	########################################################################### BEGIN PARAMETERS ############################################################################
 	SimulationName="test"
 	N=1000 #number of neurons
-	m=1 #number of maps
 
 	tauhWM=0.1
 	tauthetaWM=5.
 
-	tauhH=50.
+	tauhH=100.
 	tauthetaH=5.
+	DWM=0.05 # amount of adaptation
+	DH=0.5
 
 	tauF=2
 	U=0.3
@@ -51,15 +52,16 @@ def main():
 	h0=0.  # static threshold
 	a=0.02 # sparsity 
 	J0=0.2 # uniform inhibition
-	DWM=0.05 # amount of adaptation
-	DH=0.5
 
 	AWMtoH=0.80 #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
 	AHtoWM=0.5#0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
 	periodic = False # whether or not we want periodic boundary conditions
 	stimulus_set = np.array([ [0.68,0.6], [0.76,0.68], [0.84,0.76], [0.92,0.84], [0.6,0.68], [0.68,0.76], [0.76,0.84], [0.84,0.92] , 
-								[0.70,0.76],[0.74,0.76],[0.76,0.76],[0.78,0.76], [0.82,0.76], 
-								[0.76,0.70],[0.76,0.74],[0.76,0.78], [0.76,0.82] ])
+								# [0.70,0.76], [0.724,0.76], [0.748,0.76], [0.772,0.76], [0.896,0.76], [0.82,0.76], 
+								# [0.76,0.70], [0.76,0.72], [0.76,0.74], [0.76,0.78], [0.76,0.80], [0.76,0.82] ]
+								*np.array([[x, 0.76] for x in np.linspace(0.68, 0.84, 6)])[1:-1],
+								*np.array([[0.76, y] for y in np.linspace(0.68, 0.84, 6)])[1:-1]
+							])
 	xmin=0.6
 	xmax=0.92
 
@@ -75,7 +77,7 @@ def main():
 	num_sims=1#10 # number of sessions
 	repeats=0#6 # number of repetitions of EACH stimulus pair
 	np.random.seed(1987) #time.time)	
-
+	num_trials=20#len(stimuli[:,0])
 
 	SaveFullDynamics = 1
 	# POINTS TO TAKE FOR READOUT
@@ -83,6 +85,8 @@ def main():
 		tsave=np.arange(maxsteps) 
 	else:
 		tsave=np.arange(2800,3300,100) #[2900,3000,4000]
+
+
 	########################################################################### END PARAMETERS ############################################################################
 
 	stimulus_set_new = rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set)
@@ -105,7 +109,7 @@ def main():
 	JHtoH=BuildJ(N,RingH,J0=J0,a=a,periodic=periodic) # builds connectivity within H net
 	# no need to make inter network connectivity, as they are one-to-one    
 
-	for sim in range(0,num_sims):
+	for sim in range(num_sims):
 
 		stimuli=stimulus_set_new
 
@@ -114,8 +118,6 @@ def main():
 			stimuli=np.vstack((stimuli,stimulus_set_new))
 		np.random.shuffle(stimuli)
 
-		num_trials=len(stimuli[:,0])
-
 		VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH = np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)
 
 		labels = np.zeros(num_trials)
@@ -123,7 +125,7 @@ def main():
 		VWMsave = np.zeros((num_trials, len(tsave)*N))
 		VHsave = np.zeros((num_trials, len(tsave)*N))
 
-		for trial in range(10):#len(stimuli[:,0])):
+		for trial in range(num_trials):
 
 			s=MakeStim(maxsteps,N,stimuli[trial,0],stimuli[trial,1],t1val,t2val,deltat=deltat,deltax=deltax)
 
