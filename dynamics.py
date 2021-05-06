@@ -11,85 +11,88 @@ import os
 import time
 import cProfile
 import pstats
+import sys
 from numba import jit
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib import rc
-from pylab import rcParams
 
-# the axes attributes need to be set before the call to subplot
-rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']}, size=18)
-rc('text', usetex=True)
-rc('axes', edgecolor='black', linewidth=0.5)
-rc('legend', frameon=False)
-rcParams['ytick.direction'] = 'in'
-rcParams['xtick.direction'] = 'in'
-rcParams['text.latex.preamble'] = [r'\usepackage{sfmath}'] # \boldmath
+# import matplotlib.pyplot as plt
+# from matplotlib import cm
+# from mpl_toolkits.axes_grid1 import make_axes_locatable
+# from matplotlib import rc
+# from pylab import rcParams
+
+# # the axes attributes need to be set before the call to subplot
+# rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']}, size=18)
+# rc('text', usetex=True)
+# rc('axes', edgecolor='black', linewidth=0.5)
+# rc('legend', frameon=False)
+# rcParams['ytick.direction'] = 'in'
+# rcParams['xtick.direction'] = 'in'
+# rcParams['text.latex.preamble'] = [r'\usepackage{sfmath}'] # \boldmath
 
 
 def main():
 	########################################################################### BEGIN PARAMETERS ############################################################################
-	SimulationName="test"
 	N=1000 #number of neurons
 
-	tauhWM=0.1
-	tauthetaWM=5.
+	tauhWM=0.01
+	tauthetaWM=0.5
 
-	tauhH=100.
-	tauthetaH=5.
-	DWM=0.05 # amount of adaptation
-	DH=0.5
+	tauhH=20. #int(sys.argv[1])#10. # 20.
+	tauthetaH=0.5 #int(sys.argv[2])#0.5 #trial and error
+
+	SimulationName="tauhH%.2f_tauthetaH%.2f"%(tauhH,tauthetaH)
+
+	DWM=0.06 # amount of adaptation of WM net
+	DH=0.5 # amount of adaptation of H net
 
 	tauF=2
 	U=0.3
 
-	maxsteps=5000
-	skipsteps=100
-	dt=0.01
+	trialduration=5 # SECONDS
+	dt=0.001
+	maxsteps=int(trialduration/dt)
 
-	beta=10. # activation sensitivity
+	beta=5. # activation sensitivity
 	h0=0.  # static threshold
 	a=0.02 # sparsity 
 	J0=0.2 # uniform inhibition
 
-	AWMtoH=0.80 #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
-	AHtoWM=0.5#0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
+	AWMtoH=0.0 #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
+	AHtoWM=0.5 #0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
+
+
 	periodic = False # whether or not we want periodic boundary conditions
-	stimulus_set = np.array([ [0.68,0.6], [0.76,0.68], [0.84,0.76], [0.92,0.84], [0.6,0.68], [0.68,0.76], [0.76,0.84], [0.84,0.92] , 
-								# [0.70,0.76], [0.724,0.76], [0.748,0.76], [0.772,0.76], [0.896,0.76], [0.82,0.76], 
-								# [0.76,0.70], [0.76,0.72], [0.76,0.74], [0.76,0.78], [0.76,0.80], [0.76,0.82] ]
-								*np.array([[x, 0.76] for x in np.linspace(0.68, 0.84, 6)])[1:-1],
-								*np.array([[0.76, y] for y in np.linspace(0.68, 0.84, 6)])[1:-1]
-							])
+	stimulus_set = np.array([ [0.68,0.6], [0.76,0.68], [0.84,0.76], [0.92,0.84], [0.6,0.68], [0.68,0.76], [0.76,0.84], [0.84,0.92] ])#, 
+								# *np.array([[x, 0.76] for x in np.linspace(0.68, 0.84, 6)])[1:-1],
+								# *np.array([[0.76, y] for y in np.linspace(0.68, 0.84, 6)])[1:-1]
+							#])
 	xmin=0.6
 	xmax=0.92
 
 	xmin_new=0.1
 	xmax_new=0.9
 
-	deltat=int(5/dt)
+	deltat=int(0.4/dt) # 400 ms
+	delta_ISI=int(2/dt) # 200 ms
 	deltax=0.05	
 
-	t1val=int(1000)
-	t2val=int(3000)	
+	t1val=int(1/dt) # first stimulus given at 1 s
+	t2val=t1val+deltat+delta_ISI # second stimulus
 
-	num_sims=1#10 # number of sessions
-	repeats=0#6 # number of repetitions of EACH stimulus pair
+	num_sims=10 # number of sessions
+	repeats=6 # number of repetitions of EACH stimulus pair
 	np.random.seed(1987) #time.time)	
-	num_trials=20#len(stimuli[:,0])
 
-	SaveFullDynamics = 1
+	SaveFullDynamics = 0
 	# POINTS TO TAKE FOR READOUT
 	if SaveFullDynamics == 1:
 		tsave=np.arange(maxsteps) 
 	else:
-		tsave=np.arange(2800,3300,100) #[2900,3000,4000]
-
+		tsave=np.arange(3300,4000,200)
 
 	########################################################################### END PARAMETERS ############################################################################
 
-	stimulus_set_new = rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set)
+	stimulus_set_new = rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set).round(decimals=2)
 
 	if(SaveFullDynamics != 1):
 		#CREATE SIMULATION FOLDER
@@ -100,7 +103,6 @@ def main():
 
 		# this is for psychometric curve
 		np.save("%s/dstim_set.npy"%(SimulationName), np.unique(np.round_(stimulus_set_new[:,0]-stimulus_set_new[:,1], decimals=3)))		
-
 
 	RingWM=MakeRing(N) # defines environment. 
 	JWMtoWM=BuildJ(N,RingWM,J0=J0,a=a,periodic=periodic) # builds connectivity within WM net
@@ -118,6 +120,8 @@ def main():
 			stimuli=np.vstack((stimuli,stimulus_set_new))
 		np.random.shuffle(stimuli)
 
+		num_trials=len(stimuli[:,0])
+
 		VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH = np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)
 
 		labels = np.zeros(num_trials)
@@ -132,7 +136,7 @@ def main():
 			VWM_t,VH_t,thetaWM_t,thetaH_t, drift12, drift2end = UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s,\
 				VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave,\
 				DWM=DWM, DH=DH, tauthetaWM=tauthetaWM, tauthetaH=tauthetaH, tauhWM=tauhWM, tauhH=tauhH, tauF=tauF, U=U, \
-				maxsteps=maxsteps, dt=dt, beta=beta, h0=h0, skipsteps=skipsteps, N=N, x1=stimuli[trial,0], x2=stimuli[trial,1], \
+				maxsteps=maxsteps, dt=dt, beta=beta, h0=h0, N=N, x1=stimuli[trial,0], x2=stimuli[trial,1], \
 				t1val=t1val, t2val=t2val, deltat=deltat)
 
 			# WHETHER DRIFT IS TOWARD MEAN or PREVIOUS STIMULUS
@@ -148,11 +152,6 @@ def main():
 
 				if stimuli[trial,0]>stimuli[trial,1]:
 					labels[trial]=1
-
-			# print("drift12",drift12)
-			# print("mean",np.mean(stimuli[:trial,:]))
-			# print("stimulus",stimuli[trial,0])		
-			# print(drift[trial])
 
 		if(SaveFullDynamics == 1):
 			continue 
@@ -191,7 +190,7 @@ def dot(x,y):
 
 def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave, \
 	DWM=0.1,DH=0.5,tauthetaWM=5.,tauthetaH=5.,tauhWM=0.1,tauhH=0.1,tauF=10.,U=0.1,maxsteps=1000,dt=0.01,
-	beta=1.,h0=0.,skipsteps=10, N=1000, x1=0, x2=0, t1val=0, t2val=0, deltat=0):
+	beta=1.,h0=0., N=1000, x1=0, x2=0, t1val=0, t2val=0, deltat=0):
 	 
 		VWMsave=np.zeros((len(tsave),N))
 		VHsave=np.zeros((len(tsave),N))
@@ -219,8 +218,8 @@ def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, 
 			VWM = Logistic(hWM,beta,h0)
 
 			# UPDATE THE H NET
-			#hH += dt*(np.dot(JHtoH,VH) + 0.5*s[step] - thetaH - hH)/tauhH #+ random.uniform(0., 2.) + VWM*AWMtoH
-			hH += dt*(dot(JHtoH,VH) + 0.5*s[step] - thetaH - hH)/tauhH #+ random.uniform(0., 2.) + VWM*AWMtoH
+			#hH += dt*(np.dot(JHtoH,VH) + s[step] - thetaH - hH)/tauhH #+ random.uniform(0., 2.) + VWM*AWMtoH
+			hH += dt*(dot(JHtoH,VH) + s[step] - thetaH - hH)/tauhH #+ random.uniform(0., 2.) + VWM*AWMtoH
 			VH = Logistic(hH,beta,h0)
 
 			# TAKE SNAPSHOTS OF SYSTEM FOR READOUT
@@ -302,8 +301,8 @@ def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,t1val,t2
 	axs[1].set_xticks([])
 	axs[2].set_xticks([])
 	axs[3].set_xticks([])
-	axs[4].set_xticks(np.arange(0,maxsteps,500))
-	axs[4].set_xticklabels([i*dt for i in range(0,maxsteps,500)] )
+	axs[4].set_xticks(np.arange(0,maxsteps+1,500))
+	axs[4].set_xticklabels([i*dt for i in range(0,maxsteps+1,500)] )
 
 	axs[0].set_yticks(np.arange(0,N,200))
 	axs[1].set_yticks(np.arange(0,N,200))
