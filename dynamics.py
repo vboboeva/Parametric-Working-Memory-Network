@@ -14,27 +14,26 @@ import pstats
 import sys
 from numba import jit
 
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib import rc
-from pylab import rcParams
+# import matplotlib.pyplot as plt
+# from matplotlib import cm
+# from mpl_toolkits.axes_grid1 import make_axes_locatable
+# from matplotlib import rc
+# from pylab import rcParams
 
-# the axes attributes need to be set before the call to subplot
-rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']}, size=18)
-rc('text', usetex=True)
-rc('axes', edgecolor='black', linewidth=0.5)
-rc('legend', frameon=False)
-rcParams['ytick.direction'] = 'in'
-rcParams['xtick.direction'] = 'in'
-rcParams['text.latex.preamble'] = r'\usepackage{sfmath}' # \boldmath
-
+# # the axes attributes need to be set before the call to subplot
+# rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']}, size=18)
+# rc('text', usetex=True)
+# rc('axes', edgecolor='black', linewidth=0.5)
+# rc('legend', frameon=False)
+# rcParams['ytick.direction'] = 'in'
+# rcParams['xtick.direction'] = 'in'
+# rcParams['text.latex.preamble'] = r'\usepackage{sfmath}' # \boldmath
 
 def main():
 	########################################################################### BEGIN PARAMETERS ############################################################################
 
-	#index=int(sys.argv[1])
-	#params=np.loadtxt("params.txt")
+	index=int(sys.argv[1])
+	params=np.loadtxt("params.txt")
 
 	N=1000 #number of neurons
 
@@ -44,8 +43,8 @@ def main():
 	tauhH=1. 
 	tauthetaH=20. 
 
-	DWM=0.01#params[index,1]#0.06 # amount of adaptation of WM net
-	DH=0.30#params[index,2]#0.5 # amount of adaptation of H net
+	DWM=params[index,1]#0.06 # amount of adaptation of WM net
+	DH=params[index,2]#0.5 # amount of adaptation of H net
 
 	tauF=2
 	U=0.3
@@ -59,16 +58,15 @@ def main():
 	J0=0.2 # uniform inhibition
 
 	AWMtoH=0.0 #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
-	AHtoWM=0.6#params[index,0]#0.5 #0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
+	AHtoWM=params[index,0]#0.5 #0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
 
-
-	SimulationName="AHtoWM%.2f_DWM%.2f_DH%.2f"%(AHtoWM,DWM,DH)
+	SimulationName="figs/AHtoWM%.2f_DWM%.2f_DH%.2f"%(AHtoWM,DWM,DH)
 
 	periodic = False # whether or not we want periodic boundary conditions
-	stimulus_set = np.array([ [0.68,0.6], [0.76,0.68], [0.84,0.76], [0.92,0.84], [0.6,0.68], [0.68,0.76], [0.76,0.84], [0.84,0.92]])#, 
-							#	*np.array([[x, 0.76] for x in np.linspace(0.68, 0.84, 6)])[1:-1],
-							#	*np.array([[0.76, y] for y in np.linspace(0.68, 0.84, 6)])[1:-1]
-							#])
+	stimulus_set = np.array([ [0.68,0.6], [0.76,0.68], [0.84,0.76], [0.92,0.84], [0.6,0.68], [0.68,0.76], [0.76,0.84], [0.84,0.92], 
+								*np.array([[x, 0.76] for x in np.linspace(0.68, 0.84, 6)])[1:-1],
+								*np.array([[0.76, y] for y in np.linspace(0.68, 0.84, 6)])[1:-1]
+							])
 	xmin=0.6
 	xmax=0.92
 
@@ -82,11 +80,18 @@ def main():
 	t1val=int(1/dt) # first stimulus given at 1 s
 	t2val=t1val+deltat+delta_ISI # second stimulus
 
-	num_sims=1#10 # number of sessions
-	repeats=1#6 # number of repetitions of EACH stimulus pair
+	num_sims=20 # number of sessions
+	num_trials=500 # number of trials within each session
+
+	# define probabilities for equally spaced stimuli and also psychometric stimuli
+	probas=np.zeros(len(stimulus_set)) 
+	probas[0:8]=0.9
+	probas[8:16]=0.1
+	probas=probas/np.sum(probas)
+
 	np.random.seed(1987) #time.time)	
 
-	SaveFullDynamics = 1
+	SaveFullDynamics = 0
 
 	# POINTS TO TAKE FOR READOUT
 	if SaveFullDynamics == 1:
@@ -102,7 +107,6 @@ def main():
 		os.makedirs(SimulationName)
 
 	if(SaveFullDynamics != 1):
-
 		# this is for performance by stimulus scatter
 		np.save("%s/stimulus_set.npy"%(SimulationName), stimulus_set_new)		
 
@@ -118,13 +122,8 @@ def main():
 
 	for sim in range(num_sims):
 
-		stimuli=stimulus_set_new
-
-		for i in range(repeats):
-			stimuli=np.vstack((stimuli,stimulus_set_new))
-		np.random.shuffle(stimuli)
-
-		num_trials=len(stimuli[:,0])
+		choices=np.random.choice(np.arange(len(stimulus_set_new)), num_trials, p=probas)
+		stimuli=np.array([stimulus_set_new[i,:] for i in choices])
 
 		VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH = np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)
 
@@ -134,7 +133,6 @@ def main():
 		VHsave = np.zeros((num_trials, len(tsave)*N))
 
 		for trial in range(num_trials):
-
 			s=MakeStim(maxsteps,N,stimuli[trial,0],stimuli[trial,1],t1val,t2val,deltat=deltat,deltax=deltax)
 
 			VWM_t,VH_t,thetaWM_t,thetaH_t, drift12, drift2end = UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s,\
