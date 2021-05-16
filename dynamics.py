@@ -43,24 +43,21 @@ def main():
 	tauhH=1. 
 	tauthetaH=20. 
 
-	DWM=params[index,1]#0.06 # amount of adaptation of WM net
-	DH=params[index,2]#0.5 # amount of adaptation of H net
+	DWM=params[index,1] #0.06 amount of adaptation of WM net
+	DH=params[index,2] #0.2 amount of adaptation of H net
 
 	tauF=2
 	U=0.3
-
-	trialduration=5 # SECONDS
-	dt=0.001
-	maxsteps=int(trialduration/dt)
 
 	beta=5. # activation sensitivity
 	a=0.02 # sparsity 
 	J0=0.2 # uniform inhibition
 
 	AWMtoH=0.0 #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
-	AHtoWM=params[index,0]#0.5 #0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
+	AHtoWM=params[index,0] #0.4 0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
 
-	SimulationName="figs/AHtoWM%.2f_DWM%.2f_DH%.2f"%(AHtoWM,DWM,DH)
+	num_sims=5 # number of sessions
+	num_trials=500 # number of trials within each session
 
 	periodic = False # whether or not we want periodic boundary conditions
 	stimulus_set = np.array([ [0.68,0.6], [0.76,0.68], [0.84,0.76], [0.92,0.84], [0.6,0.68], [0.68,0.76], [0.76,0.84], [0.84,0.92], 
@@ -72,16 +69,40 @@ def main():
 
 	xmin_new=0.1
 	xmax_new=0.9
-
-	deltat=int(0.4/dt) # 400 ms
-	delta_ISI=int(2/dt) # 200 ms
 	deltax=0.05	
 
-	t1val=int(1/dt) # first stimulus given at 1 s
-	t2val=t1val+deltat+delta_ISI # second stimulus
+	deltat=0.4 # 400 ms
+	delta_ISI=params[index,3] # 2 seconds
 
-	num_sims=20 # number of sessions
-	num_trials=500 # number of trials within each session
+	t1val=1 # first stimulus given at 1 s
+	t2val=t1val+deltat+delta_ISI # time at which second stimulus is given
+
+	dt=0.001
+
+	trialduration=1+deltat+delta_ISI+deltat+1.2 # seconds
+
+	SimulationName="figs/AHtoWM%.2f_DWM%.2f_DH%.2f_TISI%d"%(AHtoWM,DWM,DH,delta_ISI)
+	
+	SaveFullDynamics = 0
+
+	# POINTS TO TAKE FOR READOUT
+	if SaveFullDynamics == 1:
+		tsave=np.arange(0,trialduration,dt) 
+	else:
+		tsave=np.array([t2val-deltat/2,t2val,t2val+deltat/2.])
+
+	########################################################################### END PARAMETERS ############################################################################
+	
+	# NOW TRANSFORM 
+
+	deltat=int(deltat/dt)
+	delta_ISI=int(delta_ISI/dt)
+
+	t1val=int(t1val/dt)
+	t2val=int(t2val/dt)
+
+	maxsteps=int(trialduration/dt)
+	tsave=np.around(tsave/dt).astype(int)
 
 	# define probabilities for equally spaced stimuli and also psychometric stimuli
 	probas=np.zeros(len(stimulus_set)) 
@@ -90,16 +111,6 @@ def main():
 	probas=probas/np.sum(probas)
 
 	np.random.seed(1987) #time.time)	
-
-	SaveFullDynamics = 0
-
-	# POINTS TO TAKE FOR READOUT
-	if SaveFullDynamics == 1:
-		tsave=np.arange(maxsteps) 
-	else:
-		tsave=np.arange(3300,3900,200)
-
-	########################################################################### END PARAMETERS ############################################################################
 
 	stimulus_set_new = rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set).round(decimals=2)
 	#CREATE SIMULATION FOLDER
