@@ -14,56 +14,52 @@ import pstats
 import sys
 from numba import jit
 
-# import matplotlib.pyplot as plt
-# from matplotlib import cm
-# from mpl_toolkits.axes_grid1 import make_axes_locatable
-# from matplotlib import rc
-# from pylab import rcParams
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib import rc
+from pylab import rcParams
 
-# # the axes attributes need to be set before the call to subplot
-# rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']}, size=18)
-# rc('text', usetex=True)
-# rc('axes', edgecolor='black', linewidth=0.5)
-# rc('legend', frameon=False)
-# rcParams['ytick.direction'] = 'in'
-# rcParams['xtick.direction'] = 'in'
-# rcParams['text.latex.preamble'] = r'\usepackage{sfmath}' # \boldmath
+# the axes attributes need to be set before the call to subplot
+rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']}, size=18)
+rc('text', usetex=True)
+rc('axes', edgecolor='black', linewidth=0.5)
+rc('legend', frameon=False)
+rcParams['ytick.direction'] = 'in'
+rcParams['xtick.direction'] = 'in'
+rcParams['text.latex.preamble'] = r'\usepackage{sfmath}' # \boldmath
 
 def main():
 	########################################################################### BEGIN PARAMETERS ############################################################################
 
-	index=int(sys.argv[1])
-	params=np.loadtxt("params.txt")
+	#index=int(sys.argv[1])
+	#params=np.loadtxt("params.txt")
 
-	N=1000 #number of neurons
+	N=2000 #number of neurons
 
-	tauhWM=0.01
-	tauthetaWM=0.5
+	tauhWM=0.05 # 0.1
+	tauthetaWM=0.5 # 5
 
-	tauhH=1. 
-	tauthetaH=20. 
+	tauhH=1. # 10
+	tauthetaH=20. #20 
 
-	DWM=params[index,1] #0.06 amount of adaptation of WM net
-	DH=params[index,2] #0.2 amount of adaptation of H net
-
-	tauF=2
-	U=0.3
+	DWM=0.1 #amount of adaptation of WM net
+	DH=0.2 #amount of adaptation of H net
 
 	beta=5. # activation sensitivity
-	a=0.02 # sparsity 
+	a=0.01 # sparsity 
 	J0=0.2 # uniform inhibition
 
 	AWMtoH=0.0 #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
-	AHtoWM=params[index,0] #0.4 0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
+	AHtoWM=0.4 #0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
 
-	num_sims=5 # number of sessions
-	num_trials=500 # number of trials within each session
+	num_sims=1 # number of sessions
+	num_trials=30 # number of trials within each session
 
 	periodic = False # whether or not we want periodic boundary conditions
 	stimulus_set = np.array([ [0.68,0.6], [0.76,0.68], [0.84,0.76], [0.92,0.84], [0.6,0.68], [0.68,0.76], [0.76,0.84], [0.84,0.92], 
 								*np.array([[x, 0.76] for x in np.linspace(0.68, 0.84, 6)])[1:-1],
-								*np.array([[0.76, y] for y in np.linspace(0.68, 0.84, 6)])[1:-1]
-							])
+								*np.array([[0.76, y] for y in np.linspace(0.68, 0.84, 6)])[1:-1]])
 	xmin=0.6
 	xmax=0.92
 
@@ -72,18 +68,18 @@ def main():
 	deltax=0.05	
 
 	deltat=0.4 # 400 ms
-	delta_ISI=params[index,3] # 2 seconds
+	delta_ISI=2 # in seconds
 
 	t1val=1 # first stimulus given at 1 s
 	t2val=t1val+deltat+delta_ISI # time at which second stimulus is given
 
-	dt=0.001
+	dt=0.01 # 0.01
 
 	trialduration=1+deltat+delta_ISI+deltat+1.2 # seconds
 
-	SimulationName="figs/AHtoWM%.2f_DWM%.2f_DH%.2f_TISI%d"%(AHtoWM,DWM,DH,delta_ISI)
+	SimulationName="figsbignet/AHtoWM%.2f_DWM%.2f_DH%.2f_TISI%d"%(AHtoWM,DWM,DH,delta_ISI)
 	
-	SaveFullDynamics = 0
+	SaveFullDynamics = 1
 
 	# POINTS TO TAKE FOR READOUT
 	if SaveFullDynamics == 1:
@@ -144,11 +140,12 @@ def main():
 		VHsave = np.zeros((num_trials, len(tsave)*N))
 
 		for trial in range(num_trials):
+			print(sim,trial)
 			s=MakeStim(maxsteps,N,stimuli[trial,0],stimuli[trial,1],t1val,t2val,deltat=deltat,deltax=deltax)
 
 			VWM_t,VH_t,thetaWM_t,thetaH_t, drift12, drift2end = UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s,\
 				VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave,\
-				DWM=DWM, DH=DH, tauthetaWM=tauthetaWM, tauthetaH=tauthetaH, tauhWM=tauhWM, tauhH=tauhH, tauF=tauF, U=U, \
+				DWM=DWM, DH=DH, tauthetaWM=tauthetaWM, tauthetaH=tauthetaH, tauhWM=tauhWM, tauhH=tauhH, \
 				maxsteps=maxsteps, dt=dt, beta=beta, N=N, x1=stimuli[trial,0], x2=stimuli[trial,1], \
 				t1val=t1val, t2val=t2val, deltat=deltat)
 
@@ -202,7 +199,7 @@ def dot(x,y):
 	return np.dot(x,y)
 
 def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave, \
-	DWM=0.1,DH=0.5,tauthetaWM=5.,tauthetaH=5.,tauhWM=0.1,tauhH=0.1,tauF=10.,U=0.1,maxsteps=1000,dt=0.01,
+	DWM=0.1,DH=0.5,tauthetaWM=5.,tauthetaH=5.,tauhWM=0.1,tauhH=0.1,maxsteps=1000,dt=0.01,
 	beta=1., N=1000, x1=0, x2=0, t1val=0, t2val=0, deltat=0):
 	 
 		VWMsave=np.zeros((len(tsave),N))
@@ -220,10 +217,6 @@ def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, 
 		for step in range(maxsteps):
 			thetaWM+=dt*(DWM*VWM-thetaWM)/tauthetaWM
 			thetaH+=dt*(DH*VH-thetaH)/tauthetaH
-
-			# these are not being used for the moment
-			uWM+=dt*(-(uWM-U)+tauF*U*VWM*(1.-uWM))            
-			uH+=dt*(-(uH-U)+tauF*U*VH*(1.-uH))
 
 			# UPDATE THE WM NET
 			#hWM += dt*(np.dot(JWMtoWM,VWM) + VH*AHtoWM + s[step] - thetaWM - hWM)/tauhWM # + #random.uniform(0., 0.1)
@@ -272,17 +265,18 @@ def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,t1val,t2
 	fig, axs = plt.subplots(5, figsize=(18,12))
 	#Vs=np.load("1D/Vdynamics.npy")
 	#S=np.load("1D/Stimuli.npy")
-	#print(np.shape(S))
-	im = axs[0].imshow(S.T, interpolation='bilinear', cmap=cm.Greys, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-	axs[0].text(t1val+500,stim1*1000, '%.2f'%stim1)
-	axs[0].text(t2val+500,stim2*1000, '%.2f'%stim2)
-	im1 = axs[1].imshow(np.log(VWMs.T), interpolation='bilinear', cmap=cm.RdYlGn, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-	im2 = axs[2].imshow(thetaWMs.T, interpolation='bilinear', cmap=cm.Blues, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-	im3 = axs[3].imshow(np.log(VHs.T), interpolation='bilinear', cmap=cm.RdYlGn, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-	im4 = axs[4].imshow(thetaHs.T, interpolation='bilinear', cmap=cm.Blues, origin='lower')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+	print(np.shape(S))
+	im = axs[0].imshow(S.T, cmap=cm.Greys, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+	axs[0].text(t1val+50,stim1*1000, '%.2f'%stim1)
+	axs[0].text(t2val+50,stim2*1000, '%.2f'%stim2)
+	im1 = axs[1].imshow(np.log(VWMs.T), cmap=cm.RdYlGn, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+	im2 = axs[2].imshow(thetaWMs.T, cmap=cm.Blues, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+	im3 = axs[3].imshow(np.log(VHs.T), cmap=cm.RdYlGn, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+	im4 = axs[4].imshow(thetaHs.T, cmap=cm.Blues, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	
 	#ax.axhline(y=400, color='k', linestyle='-')
 	#ax.axhline(y=1200, color='k', linestyle='-')
+	
 	divider = make_axes_locatable(axs[0])
 	cax = divider.append_axes("right", size="3%", pad=0.3)
 	plt.colorbar(im,cax=cax,orientation='vertical')
@@ -314,8 +308,8 @@ def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,t1val,t2
 	axs[1].set_xticks([])
 	axs[2].set_xticks([])
 	axs[3].set_xticks([])
-	axs[4].set_xticks(np.arange(0,maxsteps+1,500))
-	axs[4].set_xticklabels([i*dt for i in range(0,maxsteps+1,500)] )
+	axs[4].set_xticks(np.arange(0,maxsteps+1,100))
+	axs[4].set_xticklabels([i*dt for i in range(0,maxsteps+1,100)] )
 
 	axs[0].set_yticks(np.arange(0,N,200))
 	axs[1].set_yticks(np.arange(0,N,200))
@@ -329,8 +323,8 @@ def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,t1val,t2
 	axs[3].set_yticklabels([i/N for i in range(0,N,200)])
 	axs[4].set_yticklabels([i/N for i in range(0,N,200)])
 
-	# ax.set_yticklabels(['%.2f'%i for i in np.linspace(0,1,6)]);   
-	fig.tight_layout() 
+	#ax.set_yticklabels(['%.2f'%i for i in np.linspace(0,1,6)]);   
+	#fig.tight_layout() 
 	fig.savefig("%s/heatmap_sim%d_trial%d.png"%(SimulationName,sim,trial), bbox_inches='tight')
 
 def K(x1,x2,N,J0=0.2,a=0.03,periodic=True,cutoff=None):
