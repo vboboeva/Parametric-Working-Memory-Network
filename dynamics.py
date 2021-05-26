@@ -37,18 +37,18 @@ def main():
 
 	N=2000 #number of neurons
 
-	tauhWM=0.05 # 0.1
+	tauhWM=0.01 # 0.1
 	tauthetaWM=0.5 # 5
 
 	tauhH=1. # 10
 	tauthetaH=20. #20 
 
-	DWM=0.1 #amount of adaptation of WM net
-	DH=0.2 #amount of adaptation of H net
+	DWM=0.15 #amount of adaptation of WM net
+	DH=0.8 #amount of adaptation of H net
 
 	beta=5. # activation sensitivity
 	a=0.01 # sparsity 
-	J0=0.2 # uniform inhibition
+	J0=0.1 # uniform inhibition
 
 	AWMtoH=0.0 #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
 	AHtoWM=0.4 #0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
@@ -73,7 +73,7 @@ def main():
 	t1val=1 # first stimulus given at 1 s
 	t2val=t1val+deltat+delta_ISI # time at which second stimulus is given
 
-	dt=0.01 # 0.01
+	dt=0.001 # 0.01
 
 	trialduration=1+deltat+delta_ISI+deltat+1.2 # seconds
 
@@ -134,10 +134,11 @@ def main():
 
 		VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH = np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)
 
-		labels = np.zeros(num_trials)
-		drift = np.zeros((num_trials,2))
-		VWMsave = np.zeros((num_trials, len(tsave)*N))
-		VHsave = np.zeros((num_trials, len(tsave)*N))
+		if SaveFullDynamics == 0:
+			labels = np.zeros(num_trials)
+			drift = np.zeros((num_trials,2))
+			VWMsave = np.zeros((num_trials, len(tsave)*N))
+			VHsave = np.zeros((num_trials, len(tsave)*N))
 
 		for trial in range(num_trials):
 			print(sim,trial)
@@ -149,10 +150,6 @@ def main():
 				maxsteps=maxsteps, dt=dt, beta=beta, N=N, x1=stimuli[trial,0], x2=stimuli[trial,1], \
 				t1val=t1val, t2val=t2val, deltat=deltat)
 
-			# WHETHER DRIFT IS TOWARD MEAN or PREVIOUS STIMULUS
-			if (trial > 0):
-				drift[trial,0] = np.abs(drift12)*np.sign((np.mean(stimuli[:trial,:])-stimuli[trial,0])*drift12)				
-				drift[trial,1] = np.abs(drift12)*np.sign((stimuli[trial-1,1]-stimuli[trial,0])*drift12)				
 
 			if(SaveFullDynamics == 1):
 				PlotHeat(VWM_t,VH_t,thetaWM_t,thetaH_t,s,maxsteps,sim,trial,stimuli[trial,0],stimuli[trial,1],t1val,t2val,dt,N,SimulationName)
@@ -162,6 +159,11 @@ def main():
 
 				if stimuli[trial,0]>stimuli[trial,1]:
 					labels[trial]=1
+
+				# WHETHER DRIFT IS TOWARD MEAN or PREVIOUS STIMULUS
+				if (trial > 0):
+					drift[trial,0] = np.abs(drift12)*np.sign((np.mean(stimuli[:trial,:])-stimuli[trial,0])*drift12)				
+					drift[trial,1] = np.abs(drift12)*np.sign((stimuli[trial-1,1]-stimuli[trial,0])*drift12)				
 
 		if(SaveFullDynamics == 1):
 			continue 
@@ -262,16 +264,16 @@ def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, 
 
 
 def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,t1val,t2val,dt,N,SimulationName):
-	fig, axs = plt.subplots(5, figsize=(18,12))
+	fig, axs = plt.subplots(5, figsize=(18,12), num=1, clear=True)
 	#Vs=np.load("1D/Vdynamics.npy")
 	#S=np.load("1D/Stimuli.npy")
 	print(np.shape(S))
 	im = axs[0].imshow(S.T, cmap=cm.Greys, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	axs[0].text(t1val+50,stim1*1000, '%.2f'%stim1)
 	axs[0].text(t2val+50,stim2*1000, '%.2f'%stim2)
-	im1 = axs[1].imshow(np.log(VWMs.T), cmap=cm.RdYlGn, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+	im1 = axs[1].imshow(VWMs.T, cmap=cm.RdYlGn, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	im2 = axs[2].imshow(thetaWMs.T, cmap=cm.Blues, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-	im3 = axs[3].imshow(np.log(VHs.T), cmap=cm.RdYlGn, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+	im3 = axs[3].imshow(VHs.T, cmap=cm.RdYlGn, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	im4 = axs[4].imshow(thetaHs.T, cmap=cm.Blues, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	
 	#ax.axhline(y=400, color='k', linestyle='-')
@@ -326,6 +328,7 @@ def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,t1val,t2
 	#ax.set_yticklabels(['%.2f'%i for i in np.linspace(0,1,6)]);   
 	#fig.tight_layout() 
 	fig.savefig("%s/heatmap_sim%d_trial%d.png"%(SimulationName,sim,trial), bbox_inches='tight')
+	#fig.close()
 
 def K(x1,x2,N,J0=0.2,a=0.03,periodic=True,cutoff=None):
 	d=x1-x2
