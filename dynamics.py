@@ -14,26 +14,26 @@ import pstats
 import sys
 from numba import jit
 
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib import rc
-from pylab import rcParams
+# import matplotlib.pyplot as plt
+# from matplotlib import cm
+# from mpl_toolkits.axes_grid1 import make_axes_locatable
+# from matplotlib import rc
+# from pylab import rcParams
 
-# the axes attributes need to be set before the call to subplot
-rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']}, size=18)
-rc('text', usetex=True)
-rc('axes', edgecolor='black', linewidth=0.5)
-rc('legend', frameon=False)
-rcParams['ytick.direction'] = 'in'
-rcParams['xtick.direction'] = 'in'
-rcParams['text.latex.preamble'] = r'\usepackage{sfmath}' # \boldmath
+# # the axes attributes need to be set before the call to subplot
+# rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']}, size=18)
+# rc('text', usetex=True)
+# rc('axes', edgecolor='black', linewidth=0.5)
+# rc('legend', frameon=False)
+# rcParams['ytick.direction'] = 'in'
+# rcParams['xtick.direction'] = 'in'
+# rcParams['text.latex.preamble'] = r'\usepackage{sfmath}' # \boldmath
 
 def main():
 	########################################################################### BEGIN PARAMETERS ############################################################################
 
-	#index=int(sys.argv[1])
-	#params=np.loadtxt("params.txt")
+	index=int(sys.argv[1])-1
+	params=np.loadtxt("params.txt")
 
 	N=2000 #number of neurons
 
@@ -43,8 +43,8 @@ def main():
 	tauhH=1. # 10
 	tauthetaH=20. #20 
 
-	DWM=0.15 #amount of adaptation of WM net
-	DH=0.8 #amount of adaptation of H net
+	DWM=params[index,0] #0.15 #amount of adaptation of WM net
+	DH=params[index,1] #0.8 #amount of adaptation of H net
 
 	beta=5. # activation sensitivity
 	a=0.01 # sparsity 
@@ -53,18 +53,28 @@ def main():
 	AWMtoH=0.0 #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
 	AHtoWM=0.4 #0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
 
-	num_sims=1 # number of sessions
-	num_trials=30 # number of trials within each session
+	num_sims=20 # number of sessions
+	num_trials=500 # number of trials within each session
 
 	periodic = False # whether or not we want periodic boundary conditions
-	stimulus_set = np.array([ [0.68,0.6], [0.76,0.68], [0.84,0.76], [0.92,0.84], [0.6,0.68], [0.68,0.76], [0.76,0.84], [0.84,0.92], 
-								*np.array([[x, 0.76] for x in np.linspace(0.68, 0.84, 6)])[1:-1],
-								*np.array([[0.76, y] for y in np.linspace(0.68, 0.84, 6)])[1:-1]])
-	xmin=0.6
-	xmax=0.92
+	
+	# stimulus_set = np.array([ [0.68,0.6], [0.76,0.68], [0.84,0.76], [0.92,0.84], [0.6,0.68], [0.68,0.76], [0.76,0.84], [0.84,0.92], 
+	# 							*np.array([[x, 0.76] for x in np.linspace(0.68, 0.84, 6)])[1:-1],
+	# 							*np.array([[0.76, y] for y in np.linspace(0.68, 0.84, 6)])[1:-1]])
 
-	xmin_new=0.1
-	xmax_new=0.9
+	stimulus_set = np.log(np.array([ [33,23], [46,33], [64,46], [90,64], [125,90], [175,125], \
+								[23,33], [33,46], [46,64], [64,90], [90,125], [125,175], \
+								*np.array([[x, 64] for x in np.exp(np.linspace(np.log(46), np.log(90), 4))])[1:-1], \
+								*np.array([[64, y] for y in np.exp(np.linspace(np.log(46), np.log(90), 4))])[1:-1]]))								
+	# print(stimulus_set)
+	# plt.scatter(*stimulus_set.T)
+	# plt.show()
+
+	xmin=np.min(stimulus_set)
+	xmax=np.max(stimulus_set)
+
+	xmin_new=0.2
+	xmax_new=0.8
 	deltax=0.05	
 
 	deltat=0.4 # 400 ms
@@ -77,9 +87,9 @@ def main():
 
 	trialduration=1+deltat+delta_ISI+deltat+1.2 # seconds
 
-	SimulationName="figsbignet/AHtoWM%.2f_DWM%.2f_DH%.2f_TISI%d"%(AHtoWM,DWM,DH,delta_ISI)
+	SimulationName="AHtoWM%.2f_DWM%.2f_DH%.2f_TISI%d"%(AHtoWM,DWM,DH,delta_ISI)
 	
-	SaveFullDynamics = 1
+	SaveFullDynamics = 0
 
 	# POINTS TO TAKE FOR READOUT
 	if SaveFullDynamics == 1:
@@ -102,13 +112,21 @@ def main():
 
 	# define probabilities for equally spaced stimuli and also psychometric stimuli
 	probas=np.zeros(len(stimulus_set)) 
-	probas[0:8]=0.9
-	probas[8:16]=0.1
+	probas[:12]=0.9
+	probas[12:]=0.1
 	probas=probas/np.sum(probas)
 
-	np.random.seed(1987) #time.time)	
+	sim=params[index,2]
+	
+	np.random.seed(int(params[index,2])) #1987) #time.time)	
 
 	stimulus_set_new = rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set).round(decimals=2)
+
+	# plt.scatter(*stimulus_set_new.T)
+	# plt.show()
+	# print(stimulus_set_new)
+	# exit()
+
 	#CREATE SIMULATION FOLDER
 	if not os.path.exists(SimulationName):
 		os.makedirs(SimulationName)
@@ -127,57 +145,59 @@ def main():
 	JHtoH=BuildJ(N,RingH,J0=J0,a=a,periodic=periodic) # builds connectivity within H net
 	# no need to make inter network connectivity, as they are one-to-one    
 
-	for sim in range(num_sims):
 
-		choices=np.random.choice(np.arange(len(stimulus_set_new)), num_trials, p=probas)
-		stimuli=np.array([stimulus_set_new[i,:] for i in choices])
+	#for sim in range(num_sims):
 
-		VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH = np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)
+	choices=np.random.choice(np.arange(len(stimulus_set_new)), num_trials, p=probas)
+	stimuli=np.array([stimulus_set_new[i,:] for i in choices])
 
-		if SaveFullDynamics == 0:
-			labels = np.zeros(num_trials)
-			drift = np.zeros((num_trials,2))
-			VWMsave = np.zeros((num_trials, len(tsave)*N))
-			VHsave = np.zeros((num_trials, len(tsave)*N))
+	VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH = np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)
 
-		for trial in range(num_trials):
-			print(sim,trial)
-			s=MakeStim(maxsteps,N,stimuli[trial,0],stimuli[trial,1],t1val,t2val,deltat=deltat,deltax=deltax)
+	if SaveFullDynamics == 0:
+		labels = np.zeros(num_trials)
+		drift = np.zeros((num_trials,2))
+		VWMsave = np.zeros((num_trials, len(tsave)*N))
+		VHsave = np.zeros((num_trials, len(tsave)*N))
 
-			VWM_t,VH_t,thetaWM_t,thetaH_t, drift12, drift2end = UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s,\
-				VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave,\
-				DWM=DWM, DH=DH, tauthetaWM=tauthetaWM, tauthetaH=tauthetaH, tauhWM=tauhWM, tauhH=tauhH, \
-				maxsteps=maxsteps, dt=dt, beta=beta, N=N, x1=stimuli[trial,0], x2=stimuli[trial,1], \
-				t1val=t1val, t2val=t2val, deltat=deltat)
+	for trial in range(num_trials):
+		print(sim,trial)
+		s=MakeStim(maxsteps,N,stimuli[trial,0],stimuli[trial,1],t1val,t2val,deltat=deltat,deltax=deltax)
 
+		VWM_t,VH_t,thetaWM_t,thetaH_t, drift12, drift2end = UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s,\
+			VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave,\
+			DWM=DWM, DH=DH, tauthetaWM=tauthetaWM, tauthetaH=tauthetaH, tauhWM=tauhWM, tauhH=tauhH, \
+			maxsteps=maxsteps, dt=dt, beta=beta, N=N, x1=stimuli[trial,0], x2=stimuli[trial,1], \
+			t1val=t1val, t2val=t2val, deltat=deltat)
 
-			if(SaveFullDynamics == 1):
-				PlotHeat(VWM_t,VH_t,thetaWM_t,thetaH_t,s,maxsteps,sim,trial,stimuli[trial,0],stimuli[trial,1],t1val,t2val,dt,N,SimulationName)
-			else:	
-				VWMsave[trial] = np.ravel(VWM_t)
-				VHsave[trial] = np.ravel(VH_t)
-
-				if stimuli[trial,0]>stimuli[trial,1]:
-					labels[trial]=1
-
-				# WHETHER DRIFT IS TOWARD MEAN or PREVIOUS STIMULUS
-				if (trial > 0):
-					drift[trial,0] = np.abs(drift12)*np.sign((np.mean(stimuli[:trial,:])-stimuli[trial,0])*drift12)				
-					drift[trial,1] = np.abs(drift12)*np.sign((stimuli[trial-1,1]-stimuli[trial,0])*drift12)				
 
 		if(SaveFullDynamics == 1):
-			continue 
-		else:
-			# this is for history plot	
-			np.save("%s/stimuli_sim%d"%(SimulationName, sim), stimuli)
+			PlotHeat(VWM_t,VH_t,thetaWM_t,thetaH_t,s,maxsteps,sim,trial,stimuli[trial,0],stimuli[trial,1],t1val,t2val,dt,N,SimulationName)
+		else:	
+			VWMsave[trial] = np.ravel(VWM_t)
+			VHsave[trial] = np.ravel(VH_t)
 
-			# these are for perceptron
-			np.save("%s/label_sim%d"%(SimulationName, sim), labels)
-			np.save("%s/VWM_sim%d"%(SimulationName, sim), VWMsave)
-			np.save("%s/VH_sim%d"%(SimulationName, sim), VHsave)
+			if stimuli[trial,0]>stimuli[trial,1]:
+				labels[trial]=1
 
-			# drift
-			np.save("%s/drift_sim%d"%(SimulationName, sim), drift)
+			# WHETHER DRIFT IS TOWARD MEAN or PREVIOUS STIMULUS
+			if (trial > 0):
+				drift[trial,0] = np.abs(drift12)*np.sign((np.mean(stimuli[:trial,:])-stimuli[trial,0])*drift12)				
+				drift[trial,1] = np.abs(drift12)*np.sign((stimuli[trial-1,1]-stimuli[trial,0])*drift12)				
+
+	#if(SaveFullDynamics == 1):
+	#	continue 
+	
+	if(SaveFullDynamics == 0):
+		# this is for history plot	
+		np.save("%s/stimuli_sim%d"%(SimulationName, sim), stimuli)
+
+		# these are for perceptron
+		np.save("%s/label_sim%d"%(SimulationName, sim), labels)
+		np.save("%s/VWM_sim%d"%(SimulationName, sim), VWMsave)
+		np.save("%s/VH_sim%d"%(SimulationName, sim), VHsave)
+
+		# drift
+		np.save("%s/drift_sim%d"%(SimulationName, sim), drift)
 	return
 
 # FUNCTIONS
