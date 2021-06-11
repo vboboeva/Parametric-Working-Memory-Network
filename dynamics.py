@@ -14,26 +14,26 @@ import pstats
 import sys
 from numba import jit
 
-# import matplotlib.pyplot as plt
-# from matplotlib import cm
-# from mpl_toolkits.axes_grid1 import make_axes_locatable
-# from matplotlib import rc
-# from pylab import rcParams
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib import rc
+from pylab import rcParams
 
-# # the axes attributes need to be set before the call to subplot
-# rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']}, size=18)
-# rc('text', usetex=True)
-# rc('axes', edgecolor='black', linewidth=0.5)
-# rc('legend', frameon=False)
-# rcParams['ytick.direction'] = 'in'
-# rcParams['xtick.direction'] = 'in'
-# rcParams['text.latex.preamble'] = r'\usepackage{sfmath}' # \boldmath
+# the axes attributes need to be set before the call to subplot
+rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']}, size=18)
+rc('text', usetex=True)
+rc('axes', edgecolor='black', linewidth=0.5)
+rc('legend', frameon=False)
+rcParams['ytick.direction'] = 'in'
+rcParams['xtick.direction'] = 'in'
+rcParams['text.latex.preamble'] = r'\usepackage{sfmath}' # \boldmath
 
 def main():
 	########################################################################### BEGIN PARAMETERS ############################################################################
 
-	index=int(sys.argv[1])-1
-	params=np.loadtxt("params.txt")
+	#index=int(sys.argv[1])-1
+	#params=np.loadtxt("params.txt")
 
 	N=2000 #number of neurons
 
@@ -43,8 +43,8 @@ def main():
 	tauhH=1. # 10
 	tauthetaH=20. #20 
 
-	DWM=params[index,0] #0.15 #amount of adaptation of WM net
-	DH=params[index,1] #0.8 #amount of adaptation of H net
+	DWM=0.05 # params[index,0] amount of adaptation of WM net
+	DH=0.8 # params[index,1] amount of adaptation of H net
 
 	beta=5. # activation sensitivity
 	a=0.01 # sparsity 
@@ -53,38 +53,15 @@ def main():
 	AWMtoH=0.0 #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
 	AHtoWM=0.4 #0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
 
-	num_sims=20 # number of sessions
-	num_trials=500 # number of trials within each session
+	num_sims=1 # number of sessions
+	num_trials=50 # number of trials within each session
 
 	periodic = False # whether or not we want periodic boundary conditions
 	
-	# stimulus_set = np.array([ [0.68,0.6], [0.76,0.68], [0.84,0.76], [0.92,0.84], [0.6,0.68], [0.68,0.76], [0.76,0.84], [0.84,0.92], 
-	# 							*np.array([[x, 0.76] for x in np.linspace(0.68, 0.84, 6)])[1:-1],
-	# 							*np.array([[0.76, y] for y in np.linspace(0.68, 0.84, 6)])[1:-1]])
-
-	# stimulus_set = np.log(np.array([ [33,23], [46,33], [64,46], [90,64], [125,90], [175,125], \
-	# 							[23,33], [33,46], [46,64], [64,90], [90,125], [125,175], \
-	# 							*np.array([[x, 64] for x in np.exp(np.linspace(np.log(46), np.log(90), 4))])[1:-1], \
-	# 							*np.array([[64, y] for y in np.exp(np.linspace(np.log(46), np.log(90), 4))])[1:-1]]))								
-	# print(stimulus_set[:,0]-stimulus_set[:,1])
-	# plt.scatter(*stimulus_set.T)
-	# plt.show()
-
-	# xmin=np.min(stimulus_set)
-	# xmax=np.max(stimulus_set)
-
-	# xmin_new=0.2
-	# xmax_new=0.8
-
 	stimulus_set = np.array([ [0.3,0.2], [0.4,0.3], [0.5,0.4], [0.6,0.5], [0.7,0.6], [0.8,0.7], \
 								[0.2,0.3], [0.3,0.4], [0.4,0.5], [0.5,0.6], [0.6,0.7], [0.7,0.8], \
 								[0.45, 0.5], [0.55, 0.5], [0.5, 0.45], [0.5, 0.55] ])
 
-	# print(stimulus_set[:,0]-stimulus_set[:,1])
-	# plt.scatter(*stimulus_set.T)
-	# plt.show()
-	# exit()
-	
 	deltax=0.05	
 
 	deltat=0.4 # 400 ms
@@ -97,9 +74,9 @@ def main():
 
 	trialduration=1+deltat+delta_ISI+deltat+1.2 # seconds
 
-	SimulationName="AHtoWM%.2f_DWM%.2f_DH%.2f_TISI%d"%(AHtoWM,DWM,DH,delta_ISI)
+	SimulationName="bignet/AHtoWM%.2f_DWM%.2f_DH%.2f_TISI%d"%(AHtoWM,DWM,DH,delta_ISI)
 	
-	SaveFullDynamics = 0
+	SaveFullDynamics = 1
 
 	# POINTS TO TAKE FOR READOUT
 	if SaveFullDynamics == 1:
@@ -126,16 +103,11 @@ def main():
 	probas[12:]=0.1
 	probas=probas/np.sum(probas)
 
-	sim=params[index,2]
+	sim=1 #params[index,2]
 	
-	np.random.seed(int(params[index,2])) #1987) #time.time)	
+	np.random.seed(1987) #int(params[index,2])) #time.time)	
 
 	stimulus_set_new = stimulus_set #rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set).round(decimals=3)
-
-	# plt.scatter(*stimulus_set_new.T)
-	# plt.show()
-	# print(stimulus_set_new[:,0]-stimulus_set_new[:,1])
-	# exit()
 
 	#CREATE SIMULATION FOLDER
 	if not os.path.exists(SimulationName):
