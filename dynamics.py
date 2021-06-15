@@ -40,21 +40,22 @@ def main():
 	tauhWM=0.01 # 0.1
 	tauthetaWM=0.5 # 5
 
-	tauhH=1. # 10
+	tauhH=5. # 10
 	tauthetaH=20. #20 
 
-	DWM=0.05 # params[index,0] amount of adaptation of WM net
-	DH=0.8 # params[index,1] amount of adaptation of H net
+	DWM=0.08 # params[index,0] amount of adaptation of WM net
+	DH=0. # params[index,1] amount of adaptation of H net
 
 	beta=5. # activation sensitivity
 	a=0.01 # sparsity 
 	J0=0.1 # uniform inhibition
+	eps=0.0 #params[index,0]
 
 	AWMtoH=0.0 #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
-	AHtoWM=0.4 #0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
+	AHtoWM=1. #0.4 0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
 
 	num_sims=1 # number of sessions
-	num_trials=50 # number of trials within each session
+	num_trials=20 # number of trials within each session
 
 	periodic = False # whether or not we want periodic boundary conditions
 	
@@ -74,7 +75,7 @@ def main():
 
 	trialduration=1+deltat+delta_ISI+deltat+1.2 # seconds
 
-	SimulationName="bignet/AHtoWM%.2f_DWM%.2f_DH%.2f_TISI%d"%(AHtoWM,DWM,DH,delta_ISI)
+	SimulationName="bignet/AHtoWM%.2f_DWM%.2f_DH%.2f_eps%.2f"%(AHtoWM,DWM,DH,eps)
 	
 	SaveFullDynamics = 1
 
@@ -103,9 +104,9 @@ def main():
 	probas[12:]=0.1
 	probas=probas/np.sum(probas)
 
-	sim=1 #params[index,2]
+	sim=0 #int(params[index,1])
 	
-	np.random.seed(1987) #int(params[index,2])) #time.time)	
+	np.random.seed(sim) #int(params[index,2])) #time.time)	
 
 	stimulus_set_new = stimulus_set #rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set).round(decimals=3)
 
@@ -126,7 +127,6 @@ def main():
 	RingH=MakeRing(N)
 	JHtoH=BuildJ(N,RingH,J0=J0,a=a,periodic=periodic) # builds connectivity within H net
 	# no need to make inter network connectivity, as they are one-to-one    
-
 
 	#for sim in range(num_sims):
 
@@ -149,7 +149,7 @@ def main():
 			VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave,\
 			DWM=DWM, DH=DH, tauthetaWM=tauthetaWM, tauthetaH=tauthetaH, tauhWM=tauhWM, tauhH=tauhH, \
 			maxsteps=maxsteps, dt=dt, beta=beta, N=N, x1=stimuli[trial,0], x2=stimuli[trial,1], \
-			t1val=t1val, t2val=t2val, deltat=deltat)
+			t1val=t1val, t2val=t2val, deltat=deltat, eps=eps)
 
 
 		if(SaveFullDynamics == 1):
@@ -204,7 +204,7 @@ def dot(x,y):
 
 def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave, \
 	DWM=0.1,DH=0.5,tauthetaWM=5.,tauthetaH=5.,tauhWM=0.1,tauhH=0.1,maxsteps=1000,dt=0.01,
-	beta=1., N=1000, x1=0, x2=0, t1val=0, t2val=0, deltat=0):
+	beta=1., N=1000, x1=0, x2=0, t1val=0, t2val=0, deltat=0, eps=0.):
 	 
 		VWMsave=np.zeros((len(tsave),N))
 		VHsave=np.zeros((len(tsave),N))
@@ -224,12 +224,12 @@ def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, 
 
 			# UPDATE THE WM NET
 			#hWM += dt*(np.dot(JWMtoWM,VWM) + VH*AHtoWM + s[step] - thetaWM - hWM)/tauhWM # + #random.uniform(0., 0.1)
-			hWM += dt*(dot(JWMtoWM,VWM) + VH*AHtoWM + s[step] - thetaWM - hWM)/tauhWM # + #random.uniform(0., 0.1)
+			hWM += dt*(dot(JWMtoWM,VWM) + VH*AHtoWM + s[step] - thetaWM - hWM + random.uniform(-eps, eps))/tauhWM # + #random.uniform(0., 0.1)
 			VWM = Logistic(hWM,beta)
 
 			# UPDATE THE H NET
 			#hH += dt*(np.dot(JHtoH,VH) + s[step] - thetaH - hH)/tauhH #+ random.uniform(0., 2.) + VWM*AWMtoH
-			hH += dt*(dot(JHtoH,VH) + s[step] - thetaH - hH)/tauhH #+ random.uniform(0., 2.) + VWM*AWMtoH
+			hH += dt*(dot(JHtoH,VH) + s[step] - thetaH - hH)/tauhH #+  + VWM*AWMtoH
 			VH = Logistic(hH,beta)
 
 			# TAKE SNAPSHOTS OF SYSTEM FOR READOUT
