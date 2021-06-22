@@ -21,7 +21,7 @@ from matplotlib import rc
 from pylab import rcParams
 
 # the axes attributes need to be set before the call to subplot
-rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']}, size=18)
+rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']}, size=14)
 rc('text', usetex=True)
 rc('axes', edgecolor='black', linewidth=0.5)
 rc('legend', frameon=False)
@@ -43,19 +43,19 @@ def main():
 	tauhH=5. # 10
 	tauthetaH=20. #20 
 
-	DWM=0.08 # params[index,0] amount of adaptation of WM net
+	DWM=0.1 # params[index,0] amount of adaptation of WM net
 	DH=0. # params[index,1] amount of adaptation of H net
 
 	beta=5. # activation sensitivity
 	a=0.01 # sparsity 
 	J0=0.1 # uniform inhibition
-	eps=0.0 #params[index,0]
+	eps=1.0 #params[index,0]
 
 	AWMtoH=0.0 #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
-	AHtoWM=1. #0.4 0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
+	AHtoWM=4 #0.4 0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
 
 	num_sims=1 # number of sessions
-	num_trials=20 # number of trials within each session
+	num_trials=10 # number of trials within each session
 
 	periodic = False # whether or not we want periodic boundary conditions
 	
@@ -153,7 +153,7 @@ def main():
 
 
 		if(SaveFullDynamics == 1):
-			PlotHeat(VWM_t,VH_t,thetaWM_t,thetaH_t,s,maxsteps,sim,trial,stimuli[trial,0],stimuli[trial,1],t1val,t2val,dt,N,SimulationName)
+			PlotHeat(VWM_t,VH_t,thetaWM_t,thetaH_t,s,maxsteps,sim,trial,stimuli[trial,0],stimuli[trial,1],deltax,t1val,t2val,dt,N,SimulationName)
 		else:	
 			VWMsave[trial] = np.ravel(VWM_t)
 			VHsave[trial] = np.ravel(VH_t)
@@ -263,18 +263,18 @@ def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, 
 		#print(Vsave)
 		return VWMsave, VHsave, thetaWMsave, thetaHsave, d12, d2end
 
-def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,t1val,t2val,dt,N,SimulationName):
-	fig, axs = plt.subplots(5, figsize=(18,12), num=1, clear=True)
+def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,deltax,t1val,t2val,dt,N,SimulationName):
+	fig, axs = plt.subplots(3, figsize=(9,4), num=1, clear=True)
 	#Vs=np.load("1D/Vdynamics.npy")
 	#S=np.load("1D/Stimuli.npy")
 	print(np.shape(S))
 	im = axs[0].imshow(S.T, cmap=cm.Greys, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-	axs[0].text(t1val+50,stim1*1000, '%.2f'%stim1)
-	axs[0].text(t2val+50,stim2*1000, '%.2f'%stim2)
-	im1 = axs[1].imshow(VWMs.T, cmap=cm.RdYlGn, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-	im2 = axs[2].imshow(thetaWMs.T, cmap=cm.Blues, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-	im3 = axs[3].imshow(VHs.T, cmap=cm.RdYlGn, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-	im4 = axs[4].imshow(thetaHs.T, cmap=cm.Blues, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+	axs[0].text(t1val+500,(stim1+deltax)*1000, '%.2f'%stim1)
+	axs[0].text(t2val+500,(stim2+deltax)*1000, '%.2f'%stim2)
+	im1 = axs[1].imshow(VWMs.T, cmap=cm.RdYlGn, origin='lower', aspect='auto', vmin=0, vmax=1)#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+	#im2 = axs[2].imshow(thetaWMs.T, cmap=cm.Blues, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+	im2 = axs[2].imshow(VHs.T, cmap=cm.RdYlGn, origin='lower', aspect='auto', vmin=0, vmax=0.12)#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+	#im4 = axs[4].imshow(thetaHs.T, cmap=cm.Blues, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	
 	#ax.axhline(y=400, color='k', linestyle='-')
 	#ax.axhline(y=1200, color='k', linestyle='-')
@@ -291,42 +291,42 @@ def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,t1val,t2
 	cax = divider.append_axes("right", size="3%", pad=0.3)    
 	plt.colorbar(im2,cax=cax,orientation='vertical')    
  
-	divider = make_axes_locatable(axs[3])
-	cax = divider.append_axes("right", size="3%", pad=0.3)    
-	plt.colorbar(im3,cax=cax,orientation='vertical')    
+	# divider = make_axes_locatable(axs[3])
+	# cax = divider.append_axes("right", size="3%", pad=0.3)    
+	# plt.colorbar(im3,cax=cax,orientation='vertical')    
  
-	divider = make_axes_locatable(axs[4])
-	cax = divider.append_axes("right", size="3%", pad=0.3)    
-	plt.colorbar(im4,cax=cax,orientation='vertical')    
+	# divider = make_axes_locatable(axs[4])
+	# cax = divider.append_axes("right", size="3%", pad=0.3)    
+	# plt.colorbar(im4,cax=cax,orientation='vertical')    
 	
-	axs[0].set_ylabel("log(S(x))")    
-	axs[1].set_ylabel("log(VWM(x))")
-	axs[2].set_ylabel("log(thetaWM(x))")
-	axs[3].set_ylabel("log(VH(x))")
-	axs[4].set_ylabel("log(thetaH(x))")
-	axs[4].set_xlabel("time (a.u.)")
+	# axs[4].set_ylabel("log(thetaH(x))")
 
 	axs[0].set_xticks([])
 	axs[1].set_xticks([])
 	axs[2].set_xticks([])
-	axs[3].set_xticks([])
-	axs[4].set_xticks(np.arange(0,maxsteps+1,100))
-	axs[4].set_xticklabels([i*dt for i in range(0,maxsteps+1,100)] )
+	# axs[3].set_xticks([])
+	axs[2].set_xticks(np.arange(0,maxsteps+1,500))
+	axs[2].set_xticklabels(['%.2f'%(i*dt) for i in range(0,maxsteps+1,500)] )
+	axs[2].set_xlabel("time [s]")
 
-	axs[0].set_yticks(np.arange(0,N,200))
-	axs[1].set_yticks(np.arange(0,N,200))
-	axs[2].set_yticks(np.arange(0,N,200))
-	axs[3].set_yticks(np.arange(0,N,200))
-	axs[4].set_yticks(np.arange(0,N,200))
+	axs[0].set_yticks([0,1000,2000])
+	axs[1].set_yticks([0,1000,2000])
+	axs[2].set_yticks([0,1000,2000])
+	# axs[3].set_yticks(np.arange(0,N,200))
+	# axs[4].set_yticks(np.arange(0,N,200))
 
-	axs[0].set_yticklabels([i/N for i in range(0,N,200)])
-	axs[1].set_yticklabels([i/N for i in range(0,N,200)])
-	axs[2].set_yticklabels([i/N for i in range(0,N,200)])
-	axs[3].set_yticklabels([i/N for i in range(0,N,200)])
-	axs[4].set_yticklabels([i/N for i in range(0,N,200)])
+	axs[0].set_yticklabels([0,0.5,1])
+	axs[1].set_yticklabels([0,0.5,1])
+	axs[2].set_yticklabels([0,0.5,1])
+	# axs[3].set_yticklabels([i/N for i in range(0,N,200)])
+	# axs[4].set_yticklabels([i/N for i in range(0,N,200)])
 
 	#ax.set_yticklabels(['%.2f'%i for i in np.linspace(0,1,6)]);   
 	#fig.tight_layout() 
+	axs[0].set_ylabel("$I_{ext}$")    
+	axs[1].set_ylabel("$V^{WM}$")
+	axs[2].set_ylabel("$V^{PPC}$")
+	# axs[3].set_ylabel("log(VH(x))")
 	fig.savefig("%s/heatmap_sim%d_trial%d.png"%(SimulationName,sim,trial), bbox_inches='tight')
 	#fig.close()
 
