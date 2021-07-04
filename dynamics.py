@@ -40,19 +40,19 @@ def main():
 	tauhWM=0.01 # 0.1
 	tauthetaWM=0.5 # 5
 
-	tauhH=6. # 10
+	tauhH=5. # 10
 	tauthetaH=20. #20 
 
-	DWM=0.08 # params[index,0] amount of adaptation of WM net
+	DWM=0.0 # params[index,0] amount of adaptation of WM net
 	DH=0. # params[index,1] amount of adaptation of H net
 
 	beta=5. # activation sensitivity
-	a=0.01 # sparsity 
-	J0=0.1 # uniform inhibition
-	eps=1.0 #params[index,0]
+	a=0.1 # sparsity 
+	J0=0.4 # uniform inhibition
+	eps=0.0 #params[index,0]
 
 	AWMtoH=0.0 #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
-	AHtoWM=2. #0.4 0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
+	AHtoWM=0.25 #0.4 0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
 
 	num_sims=1 # number of sessions
 	num_trials=10 # number of trials within each session
@@ -66,7 +66,7 @@ def main():
 	deltax=0.05	
 
 	deltat=0.4 # 400 ms
-	delta_ISI=8 # in seconds
+	delta_ISI=2 # in seconds
 
 	t1val=1 # first stimulus given at 1 s
 	t2val=t1val+deltat+delta_ISI # time at which second stimulus is given
@@ -75,7 +75,7 @@ def main():
 
 	trialduration=1+deltat+delta_ISI+deltat+1.2 # seconds
 
-	SimulationName="bignet/AHtoWM%.2f_tauhH%.2f_DWM%.2f_DH%.2f_eps%.2f_TISI%d"%(AHtoWM,tauhH,DWM,DH,eps,delta_ISI)
+	SimulationName="test/AHtoWM%.2f_tauhH%.2f_DWM%.2f_DH%.2f_eps%.2f_TISI%d"%(AHtoWM,tauhH,DWM,DH,eps,delta_ISI)
 	
 	SaveFullDynamics = 1
 
@@ -273,7 +273,7 @@ def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,deltax,t
 	axs[0].text(t2val+500,(stim2+deltax)*1000, '%.2f'%stim2)
 	im1 = axs[1].imshow(VWMs.T, cmap=cm.RdYlGn, origin='lower', aspect='auto', vmin=0, vmax=1)#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	#im2 = axs[2].imshow(thetaWMs.T, cmap=cm.Blues, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-	im2 = axs[2].imshow(VHs.T, cmap=cm.RdYlGn, origin='lower', aspect='auto', vmin=0, vmax=0.12)#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+	im2 = axs[2].imshow(VHs.T, cmap=cm.RdYlGn, origin='lower', aspect='auto', vmin=0, vmax=1)#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	#im4 = axs[4].imshow(thetaHs.T, cmap=cm.Blues, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	
 	#ax.axhline(y=400, color='k', linestyle='-')
