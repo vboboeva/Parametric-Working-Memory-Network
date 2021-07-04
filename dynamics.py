@@ -44,15 +44,15 @@ def main():
 	tauthetaH=20. #20 
 
 	DWM=0.0 # params[index,0] amount of adaptation of WM net
-	DH=0. # params[index,1] amount of adaptation of H net
+	DH=0.0 # params[index,1] amount of adaptation of H net
 
 	beta=5. # activation sensitivity
-	a=0.1 # sparsity 
-	J0=0.4 # uniform inhibition
+	a=0.05 # sparsity 
+	J0=0.33 # uniform inhibition
 	eps=0.0 #params[index,0]
 
-	AWMtoH=0.0 #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
-	AHtoWM=0.25 #0.4 0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
+	AWMtoH=0. #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
+	AHtoWM=0. #0.4 0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
 
 	num_sims=1 # number of sessions
 	num_trials=10 # number of trials within each session
@@ -75,7 +75,7 @@ def main():
 
 	trialduration=1+deltat+delta_ISI+deltat+1.2 # seconds
 
-	SimulationName="test/AHtoWM%.2f_tauhH%.2f_DWM%.2f_DH%.2f_eps%.2f_TISI%d"%(AHtoWM,tauhH,DWM,DH,eps,delta_ISI)
+	SimulationName="wideK/AHtoWM%.2f_tauhH%.2f_DWM%.2f_DH%.2f_eps%.2f_TISI%d"%(AHtoWM,tauhH,DWM,DH,eps,delta_ISI)
 	
 	SaveFullDynamics = 1
 
