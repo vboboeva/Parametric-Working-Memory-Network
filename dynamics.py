@@ -32,30 +32,32 @@ rcParams['text.latex.preamble'] = r'\usepackage{sfmath}' # \boldmath
 def main():
 	########################################################################### BEGIN PARAMETERS ############################################################################
 
-	#index=int(sys.argv[1])-1
-	#params=np.loadtxt("params.txt")
+	index=int(sys.argv[1])-1
+	params=np.loadtxt("params.txt")
 
 	N=2000 #number of neurons
 
 	tauhWM=0.01 # 0.1
 	tauthetaWM=0.5 # 5
 
-	tauhH=5. # 10
-	tauthetaH=20. #20 
+	tauhH=params[index,0] # 1
+	tauthetaH=params[index,1] # 20 
 
-	DWM=0.0 # params[index,0] amount of adaptation of WM net
-	DH=0.0 # params[index,1] amount of adaptation of H net
+	DWM=0.0 # amount of adaptation of WM net
+	DH=params[index,2] amount of adaptation of H net
 
 	beta=5. # activation sensitivity
-	a=0.05 # sparsity 
-	J0=0.33 # uniform inhibition
+	a=0.02 # sparsity 
+	JeWM=1.2
+	JeH=1.
+	J0=0.2 # uniform inhibition
 	eps=0.0 #params[index,0]
 
 	AWMtoH=0. #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
-	AHtoWM=0. #0.4 0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
+	AHtoWM=params[index,3] #0.4 0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
 
 	num_sims=1 # number of sessions
-	num_trials=10 # number of trials within each session
+	num_trials=500 # number of trials within each session
 
 	periodic = False # whether or not we want periodic boundary conditions
 	
@@ -66,7 +68,7 @@ def main():
 	deltax=0.05	
 
 	deltat=0.4 # 400 ms
-	delta_ISI=2 # in seconds
+	delta_ISI=params[index,4] # in seconds
 
 	t1val=1 # first stimulus given at 1 s
 	t2val=t1val+deltat+delta_ISI # time at which second stimulus is given
@@ -75,7 +77,7 @@ def main():
 
 	trialduration=1+deltat+delta_ISI+deltat+1.2 # seconds
 
-	SimulationName="wideK/AHtoWM%.2f_tauhH%.2f_DWM%.2f_DH%.2f_eps%.2f_TISI%d"%(AHtoWM,tauhH,DWM,DH,eps,delta_ISI)
+	SimulationName="AHtoWM%.2f_tauhH%.2f_DWM%.2f_DH%.2f_eps%.2f_TISI%d"%(AHtoWM,tauhH,DWM,DH,eps,delta_ISI)
 	
 	SaveFullDynamics = 1
 
@@ -104,7 +106,7 @@ def main():
 	probas[12:]=0.1
 	probas=probas/np.sum(probas)
 
-	sim=0 #int(params[index,1])
+	sim=int(params[index,5])
 	
 	np.random.seed(sim) #int(params[index,2])) #time.time)	
 
@@ -122,10 +124,10 @@ def main():
 		np.save("%s/dstim_set.npy"%(SimulationName), np.unique(np.round_(stimulus_set_new[:,0]-stimulus_set_new[:,1], decimals=3)))		
 
 	RingWM=MakeRing(N) # defines environment. 
-	JWMtoWM=BuildJ(N,RingWM,J0=J0,a=a,periodic=periodic) # builds connectivity within WM net
+	JWMtoWM=BuildJ(N,RingWM,Je=JeWM,J0=J0,a=a,periodic=periodic) # builds connectivity within WM net
 
 	RingH=MakeRing(N)
-	JHtoH=BuildJ(N,RingH,J0=J0,a=a,periodic=periodic) # builds connectivity within H net
+	JHtoH=BuildJ(N,RingH,Je=JeH,J0=J0,a=a,periodic=periodic) # builds connectivity within H net
 	# no need to make inter network connectivity, as they are one-to-one    
 
 	#for sim in range(num_sims):
@@ -330,17 +332,17 @@ def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,deltax,t
 	fig.savefig("%s/heatmap_sim%d_trial%d.png"%(SimulationName,sim,trial), bbox_inches='tight')
 	#fig.close()
 
-def K(x1,x2,N,J0=0.2,a=0.03,periodic=True,cutoff=None):
+def K(x1,x2,N,Je=1.,J0=0.2,a=0.03,periodic=True,cutoff=None):
 	d=x1-x2
 	if periodic:
 		if d>0.5:
 			d=d-1.
 		elif d<-0.5:
 			d=d+1.
-		return np.exp(-abs(d/a)) - J0
+		return Je*np.exp(-abs(d/a)) - J0
 	else:
 		if cutoff is None or abs(d) < cutoff:
-			return np.exp(-abs(d/a)) - J0
+			return Je*np.exp(-abs(d/a)) - J0
 		else:
 			return 0
 
@@ -351,7 +353,7 @@ def MakeRing(N):
 			grid[i]=float(i)/float(N)
 		return grid
 
-def BuildJ(N,grid,a=0.03,J0=0.2,periodic=True):
+def BuildJ(N,grid,a=0.03,Je=1,J0=0.2,periodic=True):
 	J=np.zeros((N,N))
 	for i in range(N):
 		for j in range(N):
