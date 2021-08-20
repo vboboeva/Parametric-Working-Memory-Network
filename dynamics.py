@@ -21,7 +21,7 @@ from matplotlib import rc
 from pylab import rcParams
 
 # the axes attributes need to be set before the call to subplot
-rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']}, size=14)
+rc('font',**{'family':'sans-serif','sans-serif':['Arial']}, size=10)
 rc('text', usetex=True)
 rc('axes', edgecolor='black', linewidth=0.5)
 rc('legend', frameon=False)
@@ -32,19 +32,19 @@ rcParams['text.latex.preamble'] = r'\usepackage{sfmath}' # \boldmath
 def main():
 	########################################################################### BEGIN PARAMETERS ############################################################################
 
-	index=int(sys.argv[1])-1
-	params=np.loadtxt("params.txt")
+	# index=int(sys.argv[1])-1
+	# params=np.loadtxt("params.txt")
 
 	N=2000 #number of neurons
 
 	tauhWM=0.01 # 0.1
 	tauthetaWM=0.5 # 5
 
-	tauhH=params[index,0] # 1
-	tauthetaH=params[index,1] # 20 
+	tauhH=0.5#params[index,0] # 1
+	tauthetaH=5#params[index,1] # 20 
 
 	DWM=0.0 # amount of adaptation of WM net
-	DH=params[index,2] amount of adaptation of H net
+	DH=0.2 #params[index,2] #amount of adaptation of H net
 
 	beta=5. # activation sensitivity
 	a=0.02 # sparsity 
@@ -54,10 +54,10 @@ def main():
 	eps=0.0 #params[index,0]
 
 	AWMtoH=0. #np.linspace(0.1,1,10) #0.8 strength of connections from WM net to H net
-	AHtoWM=params[index,3] #0.4 0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
+	AHtoWM=0.47 #params[index,3] #0.4 0.33 #np.linspace(0.1,1,10) #0.33 strength of connections from H net to WM net
 
 	num_sims=1 # number of sessions
-	num_trials=500 # number of trials within each session
+	num_trials=20 # number of trials within each session
 
 	periodic = False # whether or not we want periodic boundary conditions
 	
@@ -68,7 +68,7 @@ def main():
 	deltax=0.05	
 
 	deltat=0.4 # 400 ms
-	delta_ISI=params[index,4] # in seconds
+	delta_ISI=2 #params[index,4] # in seconds
 
 	t1val=1 # first stimulus given at 1 s
 	t2val=t1val+deltat+delta_ISI # time at which second stimulus is given
@@ -77,7 +77,7 @@ def main():
 
 	trialduration=1+deltat+delta_ISI+deltat+1.2 # seconds
 
-	SimulationName="AHtoWM%.2f_tauhH%.2f_DWM%.2f_DH%.2f_eps%.2f_TISI%d"%(AHtoWM,tauhH,DWM,DH,eps,delta_ISI)
+	SimulationName="allfigs/paramsfinal/AHtoWM%.2f_tauhH%.2f_tauthetaH%.2f_DH%.2f_eps%.2f_TISI%d"%(AHtoWM,tauhH,tauthetaH,DH,eps,delta_ISI)
 	
 	SaveFullDynamics = 1
 
@@ -106,7 +106,7 @@ def main():
 	probas[12:]=0.1
 	probas=probas/np.sum(probas)
 
-	sim=int(params[index,5])
+	sim=0#int(params[index,5])
 	
 	np.random.seed(sim) #int(params[index,2])) #time.time)	
 
@@ -266,16 +266,16 @@ def UpdateNet(JWMtoWM, JHtoH, AWMtoH, AHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, 
 		return VWMsave, VHsave, thetaWMsave, thetaHsave, d12, d2end
 
 def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,deltax,t1val,t2val,dt,N,SimulationName):
-	fig, axs = plt.subplots(3, figsize=(9,4), num=1, clear=True)
+	fig, axs = plt.subplots(3, figsize=(4,2.3), num=1, clear=True)
 	#Vs=np.load("1D/Vdynamics.npy")
 	#S=np.load("1D/Stimuli.npy")
 	print(np.shape(S))
 	im = axs[0].imshow(S.T, cmap=cm.Greys, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	axs[0].text(t1val+500,(stim1+deltax)*1000, '%.2f'%stim1)
 	axs[0].text(t2val+500,(stim2+deltax)*1000, '%.2f'%stim2)
-	im1 = axs[1].imshow(VWMs.T, cmap=cm.RdYlGn, origin='lower', aspect='auto', vmin=0, vmax=1)#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+	im1 = axs[1].imshow(VWMs.T, cmap=cm.Greens, origin='lower', aspect='auto', vmin=0, vmax=1)#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	#im2 = axs[2].imshow(thetaWMs.T, cmap=cm.Blues, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-	im2 = axs[2].imshow(VHs.T, cmap=cm.RdYlGn, origin='lower', aspect='auto', vmin=0, vmax=1)#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+	im2 = axs[2].imshow(VHs.T, cmap=cm.Greens, origin='lower', aspect='auto', vmin=0, vmax=1)#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	#im4 = axs[4].imshow(thetaHs.T, cmap=cm.Blues, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
 	
 	#ax.axhline(y=400, color='k', linestyle='-')
@@ -293,43 +293,25 @@ def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,deltax,t
 	cax = divider.append_axes("right", size="3%", pad=0.3)    
 	plt.colorbar(im2,cax=cax,orientation='vertical')    
  
-	# divider = make_axes_locatable(axs[3])
-	# cax = divider.append_axes("right", size="3%", pad=0.3)    
-	# plt.colorbar(im3,cax=cax,orientation='vertical')    
- 
-	# divider = make_axes_locatable(axs[4])
-	# cax = divider.append_axes("right", size="3%", pad=0.3)    
-	# plt.colorbar(im4,cax=cax,orientation='vertical')    
-	
-	# axs[4].set_ylabel("log(thetaH(x))")
-
 	axs[0].set_xticks([])
 	axs[1].set_xticks([])
-	axs[2].set_xticks([])
-	# axs[3].set_xticks([])
-	axs[2].set_xticks(np.arange(0,maxsteps+1,500))
-	axs[2].set_xticklabels(['%.2f'%(i*dt) for i in range(0,maxsteps+1,500)] )
-	axs[2].set_xlabel("time [s]")
+	axs[2].set_xticks(np.arange(0,maxsteps+1,1000))
+	axs[2].set_xticklabels(['%d'%(i*dt) for i in range(0,maxsteps+1,1000)] )
+	axs[2].set_xlabel("Time [s]")
 
 	axs[0].set_yticks([0,1000,2000])
-	axs[1].set_yticks([0,1000,2000])
-	axs[2].set_yticks([0,1000,2000])
-	# axs[3].set_yticks(np.arange(0,N,200))
-	# axs[4].set_yticks(np.arange(0,N,200))
+	axs[1].set_yticks([])
+	axs[2].set_yticks([])
 
 	axs[0].set_yticklabels([0,0.5,1])
-	axs[1].set_yticklabels([0,0.5,1])
-	axs[2].set_yticklabels([0,0.5,1])
-	# axs[3].set_yticklabels([i/N for i in range(0,N,200)])
-	# axs[4].set_yticklabels([i/N for i in range(0,N,200)])
+	axs[1].set_yticklabels([])
+	axs[2].set_yticklabels([])
 
-	#ax.set_yticklabels(['%.2f'%i for i in np.linspace(0,1,6)]);   
-	#fig.tight_layout() 
-	axs[0].set_ylabel("$I_{ext}$")    
-	axs[1].set_ylabel("$V^{WM}$")
-	axs[2].set_ylabel("$V^{PPC}$")
-	# axs[3].set_ylabel("log(VH(x))")
+	axs[0].set_ylabel("Neuron position [a.u.]")    
+	#axs[1].set_ylabel("Neuron \\ position [a.u.]")
+	#axs[2].set_ylabel("Neuron position [a.u.]")
 	fig.savefig("%s/heatmap_sim%d_trial%d.png"%(SimulationName,sim,trial), bbox_inches='tight')
+	fig.savefig("%s/heatmap_sim%d_trial%d.svg"%(SimulationName,sim,trial), bbox_inches='tight')
 	#fig.close()
 
 def K(x1,x2,N,Je=1.,J0=0.2,a=0.03,periodic=True,cutoff=None):
