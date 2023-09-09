@@ -29,45 +29,44 @@ rcParams['ytick.direction'] = 'in'
 rcParams['xtick.direction'] = 'in'
 rcParams['text.latex.preamble'] = r'\usepackage{sfmath}' # \boldmath
 
-def main():
+def main(tauhH=0.5, tauthetaH=7.5, DH=0.3, JeHtoWM=0.5, ITI=5, sim=0):
+
 	########################################################################### BEGIN PARAMETERS ############################################################################
+	N=2000 # number of neurons
 
-	#index=int(sys.argv[1])-1
-	#params=np.loadtxt("params.txt")
+	tauhWM=0.01 # neuronal timescale in WM
+	tauthetaWM=0.5 # adaptation timescale in WM (not used in default net params)
 
-	N=2000 #number of neurons
-
-	tauhWM=0.01 # 0.1
-	tauthetaWM=0.5 # 5
-
-	tauhH=0.5#params[index,0] # 0.5
-	tauthetaH=7.5#params[index,1] # 5
+	# `tauhH` neuronal timescale in PPC
+	# `tauthetaH` adaptation timescale in PPC
 
 	DWM=0.0 # amount of adaptation of WM net
-	DH=0.3#params[index,2] # 0.2
+	# `DH` amount of adaptation of PPC
 
 	beta=5. # activation sensitivity
 	a=0.02 # sparsity 
 	JeWM=1.
 	JeH=1.
-	JeHtoWM=0.5 #params[index,3]
+	# `JeHtoWM` strength of connections from PPC to WM net
 	J0=0.2 # uniform inhibition
-	eps=0.0 
+	eps=0.0 # amplitude of noise
+	# `ITI` inter-trial interval
+	# `sim` simulation number
 
 	num_sims=1 # number of sessions
-	num_trials=30 # number of trials within each session
+	num_trials=1000 # number of trials within each session
 	periodic = False # whether or not we want periodic boundary conditions
 	
 	stimulus_set = np.array([ [0.3,0.2], [0.4,0.3], [0.5,0.4], [0.6,0.5], [0.7,0.6], [0.8,0.7], \
 								[0.2,0.3], [0.3,0.4], [0.4,0.5], [0.5,0.6], [0.6,0.7], [0.7,0.8], \
 								[0.45, 0.5], [0.55, 0.5], [0.5, 0.45], [0.5, 0.55] ])
 
-	delta_ISI=np.array([2,6,10]) # params[index,4] # in seconds
+	delta_ISI=np.array([2,6,10]) # the durations of the delay interval
 
-	dt=0.001 # 0.01
+	dt=0.001 
 	
-	SimulationName="AHtoWM%.2f_tauhH%.2f_tauthetaH%.2f_DH%.2f_eps%.2f"%(JeHtoWM,tauhH,tauthetaH,DH,eps)
-	SaveFullDynamics = 1
+	SimulationName="AHtoWM%.2f_tauhH%.2f_tauthetaH%.2f_DH%.2f_eps%.2f_ITI%.1f"%(JeHtoWM,tauhH,tauthetaH,DH,eps,ITI)
+	SaveFullDynamics = 0
 	Spread_connectivity = 0
 
 	# define probabilities for equally spaced stimuli and also psychometric stimuli
@@ -77,9 +76,7 @@ def main():
 	probas=probas/np.sum(probas)
 	deltax=0.05	
 
-	sim=0 #int(params[index,4]) # 0
-	
-	np.random.seed(sim) #int(params[index,2])) #time.time)	
+	np.random.seed(sim) #int(params[2])) #time.time)	
 
 	stimulus_set_new = stimulus_set #rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set).round(decimals=3)
 
@@ -96,13 +93,10 @@ def main():
 
 	Ring=MakeRing(N) # defines environment. 
 
-	print('1')
 	JWMtoWM=BuildJ(N,Ring,Je=JeWM,J0=J0,a=a,periodic=periodic, selfcon=0) # builds connectivity within WM net
 
-	print('2')
 	JHtoH=BuildJ(N,Ring,Je=JeH,J0=J0,a=a,periodic=periodic, selfcon=0) # builds connectivity within H net
 
-	print('3')
 	if Spread_connectivity == 0:
 		JHtoWM=JeHtoWM*np.identity(N) 
 	elif Spread_connectivity == 1:
@@ -114,12 +108,11 @@ def main():
 	choices1=np.random.choice(np.arange(len(delta_ISI)), num_trials, p=np.ones(len(delta_ISI))*(1./len(delta_ISI)))
 	delay_intervals=np.array([delta_ISI[i] for i in choices1])
 
-	#print(delay_intervals)
 	VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH = np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N),np.zeros(N)
 
 	if SaveFullDynamics == 0:
 		labels = np.zeros(num_trials)
-		drift = np.zeros((num_trials,2))
+		disp = np.zeros((num_trials,2))
 		VWMsave = np.zeros((num_trials, 3*N))
 		VHsave = np.zeros((num_trials, 3*N))			
 
@@ -128,13 +121,13 @@ def main():
 		deltat=0.4 # 400 ms
 		t1val=1 # first stimulus given at 1 s
 		t2val=t1val+deltat+delay # time at which second stimulus is given
-		trialduration=1.+deltat+delay+deltat+5 # seconds
+		trialduration=1.+deltat+delay+deltat+ITI # seconds
 
 		print(trial, stimuli[trial,0], stimuli[trial,1], delay)
 
 		# POINTS TO TAKE FOR READOUT
 		if SaveFullDynamics == 1:
-			tsave=np.arange(0,trialduration,100*dt)
+			tsave=np.arange(0,trialduration,dt)
 		else:
 			tsave=np.array([t2val-deltat/2,t2val,t2val+deltat/2.])
 
@@ -144,52 +137,52 @@ def main():
 		t2val=int(t2val/dt)
 		deltat=int(deltat/dt)
 
-		#print(tsave)
 		maxsteps=int(trialduration/dt)
 		tsave=np.around(tsave/dt).astype(int)
-		#print(maxsteps)
-		#print(tsave)
 
+		# MAKE THE STIMULI
 		s=MakeStim(maxsteps,N,stimuli[trial,0],stimuli[trial,1],t1val,t2val,deltat=deltat,deltax=deltax)
 
-		VWM_t, VH_t, drift12, drift2end = UpdateNet(JWMtoWM, JHtoH, JHtoWM, s, \
+		# RUN DYNAMICS
+		VWM_t,VH_t,thetaWM_t,thetaH_t, disp12, disp2end = UpdateNet(JWMtoWM, JHtoH, JHtoWM, s, \
 			VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave,\
 			DWM=DWM, DH=DH, tauthetaWM=tauthetaWM, tauthetaH=tauthetaH, tauhWM=tauhWM, tauhH=tauhH, \
 			maxsteps=maxsteps, dt=dt, beta=beta, N=N, x1=stimuli[trial,0], x2=stimuli[trial,1], \
 			t1val=t1val, t2val=t2val, deltat=deltat, eps=eps)
-		#thetaWM_t,thetaH_t, 
 
+		# TO VISUALIZE THE DYNAMICS FOR A FEW TRIALS 
 		if(SaveFullDynamics == 1):
-			PlotHeat(VWM_t,VH_t,s,maxsteps,sim,trial,stimuli[trial,0],stimuli[trial,1],deltax,t1val,t2val,dt,N,SimulationName)
-			#thetaWM_t,thetaH_t,
+			PlotHeat(VWM_t,VH_t,thetaWM_t,thetaH_t,s,maxsteps,sim,trial,stimuli[trial,0],stimuli[trial,1],deltax,t1val,t2val,dt,N,SimulationName)
+
+		# COLLECT BEHAVIOR OF NETWORK FOR MANY TRIALS
 		else:	
 			VWMsave[trial] = np.ravel(VWM_t)
 			VHsave[trial] = np.ravel(VH_t)
 
-			if stimuli[trial,0]>stimuli[trial,1]:
+			if stimuli[trial,0] > stimuli[trial,1]:
 				labels[trial]=1
 
-			# WHETHER DRIFT IS TOWARD MEAN or PREVIOUS STIMULUS
+			# WHETHER DISPLACEMENT IS TOWARD MEAN or PREVIOUS STIMULUS
 			if (trial > 0):
-				drift[trial,0] = np.abs(drift12)*np.sign((np.mean(stimuli[:trial,:])-stimuli[trial,0])*drift12)				
-				drift[trial,1] = np.abs(drift12)*np.sign((stimuli[trial-1,1]-stimuli[trial,0])*drift12)				
+				disp[trial,0] = np.abs(disp12)*np.sign((np.mean(stimuli[:trial,:])-stimuli[trial,0])*disp12)				
+				disp[trial,1] = np.abs(disp12)*np.sign((stimuli[trial-1,1]-stimuli[trial,0])*disp12)				
 
+	# SAVE DATA WHEN COLLECTING BEHAVIOR FOR MANY TRIALS
 	if(SaveFullDynamics == 0):
-		A = np.vstack((delay_intervals,drift[:,0],drift[:,1],labels,stimuli[:,0],stimuli[:,1]))
+		A = np.vstack((delay_intervals,disp[:,0],disp[:,1],labels,stimuli[:,0],stimuli[:,1]))
 		np.save("%s/inf_sim%d"%(SimulationName, sim), A)
 		np.save("%s/VWM_sim%d"%(SimulationName, sim), VWMsave)
 		np.save("%s/VH_sim%d"%(SimulationName, sim), VHsave)
 	return
 
+
 # FUNCTIONS
 
 def rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set):
-	#stimulus_set_new=np.array((8,2))
 	for i in range(np.shape(stimulus_set)[0]):
 		for j in range(2):
 			stimulus_set[i,j] = ((xmax_new - xmin_new)*(stimulus_set[i,j]-xmin))/(xmax-xmin) + xmin_new
 	return stimulus_set
-
 
 def MakeStim(maxsteps,N,x1,x2,t1,t2,deltat,deltax):
 	s=np.zeros((maxsteps,N))
@@ -197,7 +190,6 @@ def MakeStim(maxsteps,N,x1,x2,t1,t2,deltat,deltax):
 	s[t2:int(t2+deltat),int((x2-deltax)*N):int((x2+deltax)*N)]=1
 	return s
 
-@jit(nopython=True)
 def dot(x,y):
 	return np.dot(x,y)
 
@@ -207,8 +199,8 @@ def UpdateNet(JWMtoWM, JHtoH, JHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, hH, uWM,
 	 
 		VWMsave=np.zeros((len(tsave),N))
 		VHsave=np.zeros((len(tsave),N))
-		#thetaWMsave=np.zeros((len(tsave),N))
-		#thetaHsave=np.zeros((len(tsave),N))
+		thetaWMsave=np.zeros((len(tsave),N))
+		thetaHsave=np.zeros((len(tsave),N))
 
 		k=0
 		xafter1=0
@@ -216,39 +208,33 @@ def UpdateNet(JWMtoWM, JHtoH, JHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, hH, uWM,
 		xafter2=0
 		xend=0
 		for step in range(maxsteps):
-			thetaWM+=dt*(DWM*VWM-thetaWM)/tauthetaWM
+			# thetaWM+=dt*(DWM*VWM-thetaWM)/tauthetaWM
 			thetaH+=dt*(DH*VH-thetaH)/tauthetaH
 
 			# UPDATE THE WM NET
-			#hWM += dt*(np.dot(JWMtoWM,VWM) + VH*AHtoWM + s[step] - thetaWM - hWM)/tauhWM # + #random.uniform(0., 0.1)
-			hWM += dt*(dot(JWMtoWM,VWM) + dot(JHtoWM,VH) + s[step] - thetaWM - hWM + random.uniform(-eps, eps))/tauhWM # + #random.uniform(0., 0.1)
-			#hWM += dt*(dot(JWMtoWM,VWM) + 0.47*VH + s[step] - thetaWM - hWM + random.uniform(-eps, eps))/tauhWM # + #random.uniform(0., 0.1)
+			hWM += dt*(dot(JWMtoWM,VWM) + dot(JHtoWM,VH) + s[step] - hWM + random.uniform(-eps, eps))/tauhWM  # - thetaWM if we want adaptation in WM net too
 			VWM = Logistic(hWM,beta)
 
 			# UPDATE THE H NET
-			#hH += dt*(np.dot(JHtoH,VH) + s - thetaH - hH)/tauhH #+ random.uniform(0., 2.) + VWM*AWMtoH
-			hH += dt*(dot(JHtoH,VH) + s[step] - thetaH - hH)/tauhH #+  + VWM*AWMtoH
+			hH += dt*(dot(JHtoH,VH) + s[step] - thetaH - hH)/tauhH
 			VH = Logistic(hH,beta)
 
 			# TAKE SNAPSHOTS OF SYSTEM FOR READOUT
 			if step in tsave:
 				VWMsave[k,:]=VWM
 				VHsave[k,:]=VH
-				#thetaWMsave[k,:]=thetaWM
-				#thetaHsave[k,:]=thetaH
-				#print(VH[np.argmax(VH)])
+				thetaWMsave[k,:]=thetaWM
+				thetaHsave[k,:]=thetaH
 				k+=1
 
-			# COMPUTE BUMP DRIFT FROM END OF FIRST STIMULUS TO BEGINNING OF SECOND STIMULUS
-
+			# COMPUTE BUMP DISPLACEMENT FROM END OF FIRST STIMULUS TO BEGINNING OF SECOND STIMULUS
 			if (step==(t1val+deltat + 1)):
 				xafter1+=np.argmax(VWM)/N
 				
 			if (step==(t2val - 1)):
 				xbefore2+=np.argmax(VWM)/N
 
-			# COMPUTE BUMP DRIFT FROM END OF SECOND STIMULUS TO END OF TRIAL
-
+			# COMPUTE BUMP DISPLACEMENT FROM END OF SECOND STIMULUS TO END OF TRIAL
 			if (step==(t2val+deltat + 1)):
 				xafter2+=np.argmax(VWM)/N
 
@@ -257,24 +243,16 @@ def UpdateNet(JWMtoWM, JHtoH, JHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, hH, uWM,
 
 		d12=xbefore2-xafter1	
 		d2end=xend-xafter2
-		return VWMsave, VHsave, d12, d2end
-		#thetaWMsave, thetaHsave,
+		return VWMsave, VHsave, thetaWMsave, thetaHsave, d12, d2end
 
-#thetaWMs,thetaHs,
-def PlotHeat(VWMs,VHs,S,maxsteps,sim,trial,stim1,stim2,deltax,t1val,t2val,dt,N,SimulationName):
-	#print(VWMs)
+# PLOT HEATMAP OF NET DYNAMICS (WORKS ONLY WHEN SaveFullDynamics = 1)
+def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,deltax,t1val,t2val,dt,N,SimulationName):
 	fig, axs = plt.subplots(3, figsize=(4,2.3), num=1, clear=True)
-	im = axs[0].imshow(S.T, cmap=cm.Greys, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
+	im = axs[0].imshow(S.T, cmap=cm.Greys, origin='lower', aspect='auto')
 	axs[0].text(t1val+500,(stim1+deltax)*1000, '%.2f'%stim1)
 	axs[0].text(t2val+500,(stim2+deltax)*1000, '%.2f'%stim2)
-	im1 = axs[1].imshow(VWMs.T, cmap=cm.Greens, origin='lower', aspect='auto', vmin=0, vmax=1)#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-	#im2 = axs[2].imshow(thetaWMs.T, cmap=cm.Blues, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-	im2 = axs[2].imshow(VHs.T, cmap=cm.Greens, origin='lower', aspect='auto', vmin=0, vmax=1)#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-	#im4 = axs[4].imshow(thetaHs.T, cmap=cm.Blues, origin='lower', aspect='auto')#,vmax=abs(Vs).max(), vmin=-abs(Vs).max())
-	
-	#ax.axhline(y=400, color='k', linestyle='-')
-	#ax.axhline(y=1200, color='k', linestyle='-')
-	
+	im1 = axs[1].imshow(VWMs.T, cmap=cm.Greens, origin='lower', aspect='auto', vmin=0, vmax=1)
+	im2 = axs[2].imshow(VHs.T, cmap=cm.Greens, origin='lower', aspect='auto', vmin=0, vmax=1)	
 	divider = make_axes_locatable(axs[0])
 	cax = divider.append_axes("right", size="3%", pad=0.3)
 	plt.colorbar(im,cax=cax,orientation='vertical')
@@ -289,8 +267,8 @@ def PlotHeat(VWMs,VHs,S,maxsteps,sim,trial,stim1,stim2,deltax,t1val,t2val,dt,N,S
  
 	axs[0].set_xticks([])
 	axs[1].set_xticks([])
-	#axs[2].set_xticks(np.arange(0,maxsteps+1,1000))
-	#axs[2].set_xticklabels(['%d'%(i*dt*10) for i in range(0,maxsteps+1,1000)] )
+	axs[2].set_xticks(np.arange(0,maxsteps+1,1000))
+	axs[2].set_xticklabels(['%d'%(i*dt) for i in range(0,maxsteps+1,1000)] )
 	axs[2].set_xlabel("Time [s]")
 
 	axs[0].set_yticks([0,1000,2000])
@@ -302,12 +280,10 @@ def PlotHeat(VWMs,VHs,S,maxsteps,sim,trial,stim1,stim2,deltax,t1val,t2val,dt,N,S
 	axs[2].set_yticklabels([])
 
 	axs[0].set_ylabel("Neuron position [a.u.]")    
-	#axs[1].set_ylabel("Neuron \\ position [a.u.]")
-	#axs[2].set_ylabel("Neuron position [a.u.]")
 	fig.savefig("%s/heatmap_sim%d_trial%d.png"%(SimulationName,sim,trial), bbox_inches='tight')
 	#fig.savefig("%s/heatmap_sim%d_trial%d.svg"%(SimulationName,sim,trial), bbox_inches='tight')
-	#fig.close()
 
+# CONNECTIVITY KERNEL
 def K(x1,x2,N,Je=1.,J0=0.2,a=0.03,periodic=True,cutoff=None):
 	d=x1-x2
 	if periodic:
@@ -322,7 +298,6 @@ def K(x1,x2,N,Je=1.,J0=0.2,a=0.03,periodic=True,cutoff=None):
 		else:
 			return 0
 
-@jit(nopython=True)
 def MakeRing(N):
 		grid=np.zeros(N)
 		for i in range(N):
@@ -330,7 +305,6 @@ def MakeRing(N):
 		return grid
 
 def BuildJ(N,grid,a=0.03,Je=1,J0=0.2,periodic=True, selfcon=0):
-	#print(N,a,Je,J0,periodic)
 	J=np.zeros((N,N))
 	for i in range(N):
 		for j in range(N):
@@ -341,7 +315,6 @@ def BuildJ(N,grid,a=0.03,Je=1,J0=0.2,periodic=True, selfcon=0):
 					J[i][j]=K(grid[i],grid[j],N,Je=Je,J0=J0,a=a,periodic=periodic,cutoff=None) 
 	return J/(N*a)
 
-@jit(nopython=True)
 def Logistic(h,beta):
 	return 1./(1.+np.exp(-beta*h))        
 
@@ -350,16 +323,15 @@ def CorrAct(pos,bump_center=0.5):
 	V=np.zeros(N)
 	for i in range(N):
 		V[i]= K(pos[i],bump_center,N)
-	#print(V)
 	return V
 
 if __name__ == "__main__":
-	#cProfile.run('main()')
-	main()
-	# def f (a,x):
-	#     return 1./(1.+np.exp(-a*x+3))
+	
+	tauhH=float(sys.argv[1])
+	tauthetaH=float(sys.argv[2])
+	DH=float(sys.argv[3])
+	JeHtoWM=float(sys.argv[4])
+	ITI=float(sys.argv[5])
+	sim=int(sys.argv[6])
 
-	# x = np.linspace(-5,10,100)
-	# y = f(100,x)
-	# plt.plot(x,y)
-	# plt.show()
+	main(tauhH, tauthetaH, DH, JeHtoWM, ITI, sim)
