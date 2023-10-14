@@ -31,7 +31,7 @@ tauhH=0.5#float(sys.argv[1])
 tauthetaH=7.5#float(sys.argv[2])
 ISI=2
 N=2000
-num_sims=50
+num_sims=10
 num_trials=1000
 num_stimpairs=12
 trialback=1
@@ -78,7 +78,7 @@ width = 0.3
 diststim_to_idx={-0.6:0, -0.5:1, -0.4:2, -0.3:3, -0.2:4, -0.1:5, -0.05:6, 0:7, 0.05:8, 0.1:9, 0.2:10, 0.3:11, 0.4:12, 0.5:13, 0.6:14}
 distances=99*np.ones(( len(diststim_to_idx), 3, num_trials_consider ))
 
-fig, axs = plt.subplots(1,1,figsize=(2,2))
+fig, axs = plt.subplots(1,1,figsize=(1.5,1.5))
 
 ids = np.array([i for i in np.arange(num_trials*num_sims) if i not in np.arange(0,num_trials*num_sims, num_trials)])
 
@@ -110,16 +110,16 @@ for k in range(len(diststim_to_idx)):
 
 print(mean_distances[:,0])
 print(mean_distances[:,1])
-axs.plot(mean_distances[:,0], mean_distances[:,1], label='x=2')
-axs.plot(mean_distances[:,0], mean_distances[:,2], label='x=1')
-axs.plot(np.arange(-0.6,0.6,0.1), np.arange(-0.6,0.6,0.1), ls=':', color='k')
-axs.axhline(0, color='black')
-axs.axvline(0, color='black')
+axs.plot(mean_distances[:,0], mean_distances[:,1], color='black')
+# axs.plot(mean_distances[:,0], mean_distances[:,2])
+# axs.plot(np.arange(-0.6,0.6,0.1), np.arange(-0.6,0.6,0.1), ls=':', color='k')
+axs.axhline(0, color='gray', ls='--')
+axs.axvline(0, color='gray', ls='--')
 axs.set_xlim(-0.6,0.6)
 axs.set_ylim(-0.2, 0.2)
 axs.legend(loc='best')
-axs.set_xlabel('s1(t)-sx(t-1)')
-axs.set_ylabel('s1(t)-sh(t)')
+axs.set_xlabel('$s_1(t)-s_2(t-1)$')
+axs.set_ylabel('$s_1(t)-{\\hat{s}}(t)$')
 
 fig.savefig("figs/displ_%s.png"%(SimulationName), bbox_inches='tight')
 fig.savefig("figs/displ_%s.svg"%(SimulationName), bbox_inches='tight')

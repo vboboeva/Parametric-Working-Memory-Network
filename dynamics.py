@@ -12,8 +12,6 @@ import time
 import cProfile
 import pstats
 import sys
-from numba import jit
-
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -54,7 +52,7 @@ def main(tauhH=0.5, tauthetaH=7.5, DH=0.3, JeHtoWM=0.5, ITI=5, sim=0):
 	# `sim` simulation number
 
 	num_sims=1 # number of sessions
-	num_trials=1000 # number of trials within each session
+	num_trials=20 # number of trials within each session
 	periodic = False # whether or not we want periodic boundary conditions
 	
 	stimulus_set = np.array([ [0.3,0.2], [0.4,0.3], [0.5,0.4], [0.6,0.5], [0.7,0.6], [0.8,0.7], \
@@ -66,7 +64,7 @@ def main(tauhH=0.5, tauthetaH=7.5, DH=0.3, JeHtoWM=0.5, ITI=5, sim=0):
 	dt=0.001 
 	
 	SimulationName="AHtoWM%.2f_tauhH%.2f_tauthetaH%.2f_DH%.2f_eps%.2f_ITI%.1f"%(JeHtoWM,tauhH,tauthetaH,DH,eps,ITI)
-	SaveFullDynamics = 0
+	SaveFullDynamics = 1
 	Spread_connectivity = 0
 
 	# define probabilities for equally spaced stimuli and also psychometric stimuli
@@ -175,7 +173,6 @@ def main(tauhH=0.5, tauthetaH=7.5, DH=0.3, JeHtoWM=0.5, ITI=5, sim=0):
 		np.save("%s/VH_sim%d"%(SimulationName, sim), VHsave)
 	return
 
-
 # FUNCTIONS
 
 def rescale(xmin,xmax,xmin_new,xmax_new,stimulus_set):
@@ -189,9 +186,6 @@ def MakeStim(maxsteps,N,x1,x2,t1,t2,deltat,deltax):
 	s[t1:int(t1+deltat),int((x1-deltax)*N):int((x1+deltax)*N)]=1
 	s[t2:int(t2+deltat),int((x2-deltax)*N):int((x2+deltax)*N)]=1
 	return s
-
-def dot(x,y):
-	return np.dot(x,y)
 
 def UpdateNet(JWMtoWM, JHtoH, JHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, hH, uWM, uH, tsave, \
 	DWM=0.1,DH=0.5,tauthetaWM=5.,tauthetaH=5.,tauhWM=0.1,tauhH=0.1,maxsteps=1000,dt=0.01,
@@ -212,11 +206,11 @@ def UpdateNet(JWMtoWM, JHtoH, JHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, hH, uWM,
 			thetaH+=dt*(DH*VH-thetaH)/tauthetaH
 
 			# UPDATE THE WM NET
-			hWM += dt*(dot(JWMtoWM,VWM) + dot(JHtoWM,VH) + s[step] - hWM + random.uniform(-eps, eps))/tauhWM  # - thetaWM if we want adaptation in WM net too
+			hWM += dt*(np.dot(JWMtoWM,VWM) + np.dot(JHtoWM,VH) + s[step] - hWM + random.uniform(-eps, eps))/tauhWM  # - thetaWM if we want adaptation in WM net too
 			VWM = Logistic(hWM,beta)
 
 			# UPDATE THE H NET
-			hH += dt*(dot(JHtoH,VH) + s[step] - thetaH - hH)/tauhH
+			hH += dt*(np.dot(JHtoH,VH) + s[step] - thetaH - hH)/tauhH
 			VH = Logistic(hH,beta)
 
 			# TAKE SNAPSHOTS OF SYSTEM FOR READOUT
@@ -247,10 +241,12 @@ def UpdateNet(JWMtoWM, JHtoH, JHtoWM, s, VWM, VH, thetaWM, thetaH, hWM, hH, uWM,
 
 # PLOT HEATMAP OF NET DYNAMICS (WORKS ONLY WHEN SaveFullDynamics = 1)
 def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,deltax,t1val,t2val,dt,N,SimulationName):
+	
 	fig, axs = plt.subplots(3, figsize=(4,2.3), num=1, clear=True)
 	im = axs[0].imshow(S.T, cmap=cm.Greys, origin='lower', aspect='auto')
 	axs[0].text(t1val+500,(stim1+deltax)*1000, '%.2f'%stim1)
 	axs[0].text(t2val+500,(stim2+deltax)*1000, '%.2f'%stim2)
+	
 	im1 = axs[1].imshow(VWMs.T, cmap=cm.Greens, origin='lower', aspect='auto', vmin=0, vmax=1)
 	im2 = axs[2].imshow(VHs.T, cmap=cm.Greens, origin='lower', aspect='auto', vmin=0, vmax=1)	
 	divider = make_axes_locatable(axs[0])
@@ -266,22 +262,22 @@ def PlotHeat(VWMs,VHs,thetaWMs,thetaHs,S,maxsteps,sim,trial,stim1,stim2,deltax,t
 	plt.colorbar(im2,cax=cax,orientation='vertical')    
  
 	axs[0].set_xticks([])
+	axs[0].set_yticks([0,1000,2000])
+	axs[0].set_yticklabels([0,0.5,1])
+	axs[0].set_ylabel("Neuron position [a.u.]")    
+
 	axs[1].set_xticks([])
+	axs[1].set_yticks([])
+	axs[1].set_yticklabels([])
+	
 	axs[2].set_xticks(np.arange(0,maxsteps+1,1000))
 	axs[2].set_xticklabels(['%d'%(i*dt) for i in range(0,maxsteps+1,1000)] )
+	axs[2].set_yticks([])
+	axs[2].set_yticklabels([])
 	axs[2].set_xlabel("Time [s]")
 
-	axs[0].set_yticks([0,1000,2000])
-	axs[1].set_yticks([])
-	axs[2].set_yticks([])
-
-	axs[0].set_yticklabels([0,0.5,1])
-	axs[1].set_yticklabels([])
-	axs[2].set_yticklabels([])
-
-	axs[0].set_ylabel("Neuron position [a.u.]")    
-	fig.savefig("%s/heatmap_sim%d_trial%d.png"%(SimulationName,sim,trial), bbox_inches='tight')
-	#fig.savefig("%s/heatmap_sim%d_trial%d.svg"%(SimulationName,sim,trial), bbox_inches='tight')
+	fig.savefig("%s/dynamics_sim%d_trial%d.png"%(SimulationName,sim,trial), bbox_inches='tight')
+	fig.savefig("%s/dynamics_sim%d_trial%d.svg"%(SimulationName,sim,trial), bbox_inches='tight')
 
 # CONNECTIVITY KERNEL
 def K(x1,x2,N,Je=1.,J0=0.2,a=0.03,periodic=True,cutoff=None):

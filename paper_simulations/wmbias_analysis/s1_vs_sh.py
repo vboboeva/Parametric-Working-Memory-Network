@@ -87,15 +87,15 @@ for trial in range(len(stimuli)):
 
 for k, stim in enumerate(stimvals):
 	take_idx = np.where(loc[k, :] != 99.)
-	axs.scatter(np.repeat(stim, np.shape(take_idx)[1]), loc[k,take_idx], alpha=0.05, color='gray', s=0.5)
-	axs.scatter(stim, np.mean(loc[k,take_idx]), color='k')
+	axs.scatter(np.repeat(stim, np.shape(take_idx)[1]), loc[k,take_idx], alpha=0.05, color='gray', s=0.3)
+	axs.scatter(stim, np.mean(loc[k,take_idx]), color='k', s=0.3)
 
 axs.plot(np.arange(0.1,1,0.1), np.arange(0.1,1,0.1), ls='--', color='k')
 axs.set_xlim(0,1)
 axs.set_ylim(0,1)
 # axs.legend(loc='best')
-axs.set_xlabel('s1(t)')
-axs.set_ylabel('sh(t)')
+axs.set_xlabel('$s_1(t)$')
+axs.set_ylabel('$\\hat{s}(t)$')
 
 fig.savefig("figs/s1_vs_sh_%s.png"%(SimulationName), bbox_inches='tight')
 fig.savefig("figs/s1_vs_sh_%s.svg"%(SimulationName), bbox_inches='tight')

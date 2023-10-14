@@ -76,7 +76,7 @@ stimvals=[0.20, 0.30, 0.40, 0.45, 0.50, 0.55, 0.60, 0.70, 0.80]
 
 loc=99*np.ones(( len(stim_to_idx), num_sims*num_trials ))
 
-fig, axs = plt.subplots(1,3,figsize=(8,2))
+fig, axs = plt.subplots(1,3,figsize=(6,2))
 
 colorvals=[cp.green1, cp.green2, cp.green3, 'black']
 delayvals=[2,6,10]
@@ -96,19 +96,21 @@ for i, ISI in enumerate(delayvals):
 		loc[stim_to_idx[s1], j] = posmax
 		j+=1
 
+
 	for k, stim in enumerate(stimvals):
-		take_idx = np.where(loc[k, :] != 99.)
-		axs[i].scatter(np.repeat(stim, np.shape(take_idx)[1]), loc[k,take_idx], alpha=0.05, color='gray', s=0.5)
-		axs[i].scatter(stim, np.mean(loc[k,take_idx]), color='k')
+		take_idx = np.where(loc[k, :] != 99.)[0]
+		axs[i].scatter(np.repeat(stim, np.shape(take_idx[:1000])), loc[k,take_idx[:1000]], alpha=0.05, color='gray', s=1)
+		axs[i].scatter(stim, np.mean(loc[k,take_idx]), color='k', s=5)
 		axs[i].set_title('Delay=%s'%ISI)
 
-	axs[i].plot(np.arange(0.1,1,0.1), np.arange(0.1,1,0.1), ls='--', color='k')
+	axs[i].plot(np.arange(0.1,1,0.1), np.arange(0.1,1,0.1), ls='--', color='gray')
 	axs[i].set_xlim(0,1)
 	axs[i].set_ylim(0,1)
 	# axs[i].legend(loc='best')
-	axs[i].set_xlabel('s1(t)')
-	axs[i].set_ylabel('sh(t)')
+	axs[i].set_xlabel('$s_1(t)$')
+	axs[i].set_ylabel('$\\hat{s}(t)$')
 
+fig.tight_layout(pad=.5)	
 fig.savefig("figs/s1_vs_sh_ISI_%s.png"%(SimulationName), bbox_inches='tight')
 fig.savefig("figs/s1_vs_sh_ISI_%s.svg"%(SimulationName), bbox_inches='tight')
 

@@ -70,8 +70,6 @@ SimulationName="AHtoWM%.2f_tauhH%.2f_tauthetaH%.2f_DH%.2f_eps%.2f_ITI%.1f"%(AHto
 
 mask_trials = np.array([i for i in np.arange(num_trials*num_sims) if i not in np.arange(0,num_trials*num_sims, num_trials)])
 
-print(mask_trials)
-
 num_trials_consider = num_trials*num_sims - len(np.arange(0,num_trials*num_sims,num_trials))
 
 stimuli, V, delay = make_data()
@@ -84,7 +82,7 @@ lsvals=['-','-','-','--']
 diststim_to_idx={-0.6:0, -0.5:1, -0.4:2, -0.3:3, -0.2:4, -0.1:5, -0.05:6, 0:7, 0.05:8, 0.1:9, 0.2:10, 0.3:11, 0.4:12, 0.5:13, 0.6:14}
 distances=99*np.ones(( len(diststim_to_idx), 3, num_trials_consider ))
 
-fig, axs = plt.subplots(1,1,figsize=(2,2))
+fig, axs = plt.subplots(1,3,figsize=(6,2))
 
 for i, ISI in enumerate(delayvals):
 
@@ -114,25 +112,29 @@ for i, ISI in enumerate(delayvals):
 	mean_distances=np.ndarray(( len(diststim_to_idx), 3 ))
 
 	for k in range(len(diststim_to_idx)):
-		take_idx = np.where(distances[k, 0, :] != 99.)
+		take_idx = np.where(distances[k, 0, :] != 99.)[0]
 		mean_distances[k,0] = np.nanmean(distances[k, 0, take_idx])
-	
-		take_idx = np.where(distances[k, 1, :] != 99.)
+		
+		take_idx = np.where(distances[k, 1, :] != 99.)[0]
 		mean_distances[k,1] = np.nanmean(distances[k, 1, take_idx])
 	
-		take_idx = np.where(distances[k, 2, :] != 99.)
-		mean_distances[k,2] = np.nanmean(distances[k, 2, take_idx])
+		take_idx = np.where(distances[k, 2, :] != 99.)[0]
 
-	axs.plot(np.arange(-0.6,0.6,0.1), np.arange(-0.6,0.6,0.1), ls=':', color='k')
-	axs.plot(mean_distances[:,0], mean_distances[:,1], color=colorvals[i], label='%s'%ISI)
-	axs.axhline(0, color='black')
-	axs.axvline(0, color='black')
-	axs.set_xlim(-0.6,0.6)
-	axs.set_ylim(-0.2, 0.2)
-	axs.legend(loc='lower right')
-	axs.set_xlabel('s1(t)-s2(t-1)')
-	axs.set_ylabel('s1(t)-sh(t)')
+		mean_distances[k,2] = np.nanmean(distances[k, 2, take_idx])
+		axs[i].set_title('Delay=%s'%ISI)
+
+		axs[i].scatter(distances[k, 0, take_idx[:500]], distances[k, 1, take_idx[:500]], alpha=0.05, color='gray', s=1)
+
+	axs[i].scatter(mean_distances[:,0], mean_distances[:,1], color='k', s=5, label='%s'%ISI)
+	axs[i].axhline(0, color='gray', ls='--')
+	axs[i].axvline(0, color='gray', ls='--')
+	axs[i].set_xlim(-0.6,0.6)
+	axs[i].set_ylim(-0.6, 0.6)
+	axs[i].legend(loc='lower right')
+	axs[i].set_xlabel('$s_1(t)-s_2(t-1)$')
+	axs[i].set_ylabel('$s_1(t)-\\hat{s}(t)$')
+
+fig.tight_layout(pad=.5)	
 
 fig.savefig("figs/displ_ISI_%s.png"%(SimulationName), bbox_inches='tight')
 fig.savefig("figs/displ_ISI_%s.svg"%(SimulationName), bbox_inches='tight')
-

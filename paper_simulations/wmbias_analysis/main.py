@@ -196,7 +196,7 @@ import sys
 # N=2000
 # num_sims=100
 # ISI='all'
-# psycholabel=False
+# psycholabel=True
 
 # os.system('python psychometric_fTITI.py %s %s %s %s %s %s %s %s %s'%(tauhH, tauthetaH, DH, AHtoWM, eps, N, num_sims, ISI, psycholabel))
 
